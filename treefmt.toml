@@ -24,5 +24,6 @@ excludes = ["*/sources.json"]
 
 [formatter.rustfmt]
 command = "rustfmt"
+options = ["--edition", "2021"]
 includes = ["*.rs"]
 excludes = []
