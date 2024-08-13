@@ -1,6 +1,6 @@
 use super::Args;
 
-pub fn run(args: Args) -> anyhow::Result<()> {
+pub fn run(_args: Args) -> anyhow::Result<()> {
     // Dispatch to appropriate command based on args
     Ok(())
 }
