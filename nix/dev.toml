@@ -1,0 +1,21 @@
+[atom]
+name = "dev"
+
+[fetch.pkgs]
+name = "nixpkgs"
+import = true
+args = [{}]
+
+[fetch.fenix]
+name = "fenix"
+import = true
+args = [{ pkgs = true }]
+
+[std]
+features = ["lib"]
+
+[backend.nix]
+fetcher = "npins"
+
+[fetcher.npins]
+root = "npins"

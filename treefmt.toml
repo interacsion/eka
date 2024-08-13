@@ -1,0 +1,28 @@
+[formatter.nixfmt]
+command = "nixfmt"
+options = []
+includes = ["*.nix"]
+excludes = []
+
+[formatter.shfmt]
+command = "shfmt"
+options = []
+includes = ["*.sh", ".envrc"]
+excludes = []
+
+[formatter.taplo]
+command = "taplo"
+options = ["fmt"]
+includes = ["*.toml"]
+excludes = []
+
+[formatter.prettier]
+command = "prettier"
+options = ["--write"]
+includes = ["*.json", "*.md", "*.yaml", "*.yml"]
+excludes = ["*/sources.json"]
+
+[formatter.rustfmt]
+command = "rustfmt"
+includes = ["*.rs"]
+excludes = []
