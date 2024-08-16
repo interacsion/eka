@@ -1,3 +1,3 @@
 > Coming Soon
 
-*No more half-measures, no more compromises...*
+*No more half-measures, no more compromises, and please, no more wrappers...*
