@@ -4,9 +4,9 @@ _No more half-measures, no more compromises, and please, no more wrappers..._
 
 # Ekala CLI
 
-Ekala is a next-generation functional package manager and development platform designed to provide a seamless, extensible, and powerful interface for managing complex software projects.
+Ekala is a next-generation functional evaluation frontend and development platform. It offers a seamless, extensible, and powerful interface for managing complex software projects.
 
-It aims to be a comprehensive platform for software development and operations, streamlining complex workflows and enabling developers to leverage the full power of functional programming paradigms in their projects, in an otherwise unopinionated format.
+Our goal is to streamline complex workflows across all types of projects, not just those using functional programming. Ekala leverages functional paradigms in its own architecture to ensure reproducibility and robust design. However, its plugin system allows for managing any kind of project, adapting to diverse needs and development styles. This approach combines the benefits of functional design with the flexibility to work with any programming paradigm or project structure.
 
 ## Core Concepts
 
