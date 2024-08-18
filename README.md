@@ -16,7 +16,14 @@ At its core, Ekala serves as an entrypoint for purely functional configuration g
 
 ### Reification Backends
 
-Optional "reification backends" can produce concrete artifacts (e.g., Nix builds, Guix builds) from functional evaluations.
+Reification backends transform functional evaluations into concrete artifacts (e.g., Nix or Guix builds). These backends communicate with an abstracted API (Eos) that handles build and evaluation concerns such as scheduling. This architecture:
+
+1. Decouples the CLI from complex build processes
+2. Allows for optimized communication between frontend (CLI) and backend
+3. Provides a clear scope for the CLI's responsibilities
+4. Enables future refinement of the build and evaluation systems independently
+
+In essence, reification backends in the CLI act as a connection layer, bridging the gap between user commands and the actual builder backend scheduler via the Eos API. This design ensures a clean separation of concerns and allows for flexibility in backend implementations.
 
 ### Two-Tier Extension System: Atoms and Plugins
 
