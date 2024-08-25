@@ -2,17 +2,17 @@
 
 _No more half-measures, no more compromises, and please, no more wrappers..._
 
-# Ekala CLI
+# Eka CLI
 
-Ekala is a next-generation functional evaluation frontend and development platform. It offers a seamless, extensible, and powerful interface for managing complex software projects.
+Eka is a next-generation functional evaluation frontend for the Ekala development platform. It offers a seamless, extensible, and powerful interface for managing complex software projects.
 
-Our goal is to streamline complex workflows across all types of projects, not just those using functional programming. Ekala leverages functional paradigms in its own architecture to ensure reproducibility and robust design. However, its plugin system allows for managing any kind of project, adapting to diverse needs and development styles. This approach combines the benefits of functional design with the flexibility to work with any programming paradigm or project structure.
+Our goal is to streamline complex workflows across all types of projects, not just those using functional programming. Eka leverages functional paradigms in its own architecture to ensure reproducibility and robust design. However, its plugin system allows for managing any kind of project, adapting to diverse needs and development styles. This approach combines the benefits of functional design with the flexibility to work with any programming paradigm or project structure.
 
 ## Core Concepts
 
 ### Functional Evaluation Engine
 
-At its core, Ekala serves as an entrypoint for purely functional configuration generation, working with various functional languages and configuration formats.
+At its core, Eka serves as an entrypoint for purely functional configuration generation, working with various functional languages and configuration formats.
 
 ### Reification Backends
 
@@ -27,7 +27,7 @@ In essence, reification backends in the CLI act as a connection layer, bridging 
 
 ### Two-Tier Extension System: Atoms and Plugins
 
-Ekala employs a sophisticated extension system:
+Eka employs a sophisticated extension system:
 
 - **Atoms**: High-level, declarative units managed through the CLI, providing domain-specific features with a consistent interface.
 - **Plugins**: A language-agnostic plugin interface (using the extism framework) that underpins atoms, allowing for flexible implementation and manifest schema extension.
@@ -36,7 +36,7 @@ Atoms act as API entrypoints, activating and calling into underlying plugins. Th
 
 ### Cross-Language Configuration Transformation
 
-Ekala facilitates passing configuration or generated code between different functional languages (e.g., Nickel to Nix), with well-defined schemas for validation.
+Eka facilitates passing configuration or generated code between different functional languages (e.g., Nickel to Nix), with well-defined schemas for validation.
 
 ## Design Philosophy
 
@@ -49,7 +49,7 @@ Ekala facilitates passing configuration or generated code between different func
 
 ## Target Domains
 
-Ekala caters to a wide range of expert groups:
+Eka caters to a wide range of expert groups:
 
 1. Package Managers
 2. DevOps Engineers
@@ -77,7 +77,7 @@ Ekala caters to a wide range of expert groups:
 
 ## Future Development
 
-Ekala is designed for future expansion, potentially including:
+Eka is designed for future expansion, potentially including:
 
 - Additional reification backends
 - Enhanced cross-language transformation capabilities
