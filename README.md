@@ -145,14 +145,14 @@ Reification backends transform functional evaluations into concrete artifacts (e
 
 In essence, reification backends in the CLI act as a connection layer, bridging the gap between user commands and the actual builder backend scheduler via the Eos API. This design ensures a clean separation of concerns and allows for flexibility in backend implementations.
 
-### Two-Tier Extension System: Atoms and Plugins
+### Two-Tier Extension System: Schema and Plugins
 
 Eka employs a sophisticated extension system:
 
-- **Atoms**: High-level, declarative units managed through the CLI, providing domain-specific features with a consistent interface.
-- **Plugins**: A language-agnostic plugin interface (using the extism framework) that underpins atoms, allowing for flexible implementation and manifest schema extension.
+- **Schema Extension**: Each plugin defines extensions to the core manifest format, defined by type. Only plugins can define new types.
+- **Plugins**: A language-agnostic plugin interface (using the extism framework) that declares these schemata extensions, allowing for flexible implementation of the manifest schema extension.
 
-Atoms act as API entrypoints, activating and calling into underlying plugins. This approach combines a clean user interface with powerful, flexible implementation capabilities.
+The manifest acts as an entrypoint, activating and calling into underlying plugins. This approach combines a clean user interface with powerful, flexible implementation capabilities.
 
 ### Cross-Language Configuration Transformation
 
@@ -161,39 +161,24 @@ Eka facilitates passing configuration or generated code between different functi
 ## Design Philosophy
 
 1. **Simplicity and Conciseness**: Intuitive CLI with focus on essential commands.
-2. **Extensibility**: Powerful extensions through the atom/plugin system without core clutter.
-3. **Clear Boundaries**: Distinct separation between core, reification backends, and atom-provided features.
+2. **Extensibility**: Powerful extensions through the plugin system without core clutter.
+3. **Clear Boundaries**: Distinct separation between core, reification backends, and plugin-provided features.
 4. **One Clear Way**: Generally one obvious way to accomplish each task.
-5. **Declarative Management**: Atoms (and their underlying plugins) are managed declaratively.
-6. **Comprehensive Coverage**: Addresses needs of various expert groups while maintaining simplicity.
+5. **Declarative Management**: The manifest defines an entry into a fundamentally declarative platform to manage software projects.
+6. **Comprehensive Coverage**: Addresses needs of various expert groups through extensions, while maintaining simplicity in the core.
 
 ## Target Domains
 
-Eka caters to a wide range of expert groups:
+Eka seeks to appeal to a wide range of expert groups through its extension mechanisms
 
-1. Package Managers
-2. DevOps Engineers
-3. Cloud Architects
-4. Site Reliability Engineers
-5. Software Architects
-6. IDE/Tool Developers
-7. Developer Advocates & Technical Writers
-
-## Key Features
-
-- Functional expression evaluation and REPL
-- Declarative atom management
-- Lock file handling for reproducibility
-- Schema validation and extension
-- Cross-language configuration transformation
-- Reification backends for building and running targets
-- Extensible command structure through atoms and plugins
-
-## CLI Structure
-
-1. Core Commands: Essential functionality for evaluation, atom management, and system-wide operations.
-2. Reification Backend Commands: Low-level commands for building and running targets.
-3. Atom-Provided Commands: Extensible, domain-specific commands provided by atoms (implemented by plugins).
+1. Software Developers
+2. Package Managers
+3. DevOps Engineers
+4. Cloud Architects
+5. Site Reliability Engineers
+6. Software Architects
+7. IDE/Tool Developers
+8. Documentation Writers & Engineers
 
 ## Future Development
 
