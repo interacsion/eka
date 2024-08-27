@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use tracing_error::ErrorLayer;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use tracing_subscriber::fmt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -26,5 +27,6 @@ pub fn init_logger(verbosity: u8) {
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(env_filter)
+        .with(ErrorLayer::default())
         .init();
 }
