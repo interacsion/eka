@@ -1,29 +1,29 @@
 [formatter.nixfmt]
-command = "nixfmt"
-options = []
-includes = ["*.nix"]
+command  = "nixfmt"
 excludes = []
+includes = ["*.nix"]
+options  = []
 
 [formatter.shfmt]
-command = "shfmt"
-options = []
-includes = ["*.sh", ".envrc"]
+command  = "shfmt"
 excludes = []
+includes = ["*.sh", ".envrc"]
+options  = []
 
 [formatter.taplo]
-command = "taplo"
-options = ["fmt"]
-includes = ["*.toml"]
+command  = "taplo"
 excludes = []
+includes = ["*.toml"]
+options  = ["fmt", "-o", "align_entries=true", "-o", "reorder_keys=true"]
 
 [formatter.prettier]
-command = "prettier"
-options = ["--write"]
-includes = ["*.json", "*.md", "*.yaml", "*.yml"]
+command  = "prettier"
 excludes = ["*/sources.json"]
+includes = ["*.json", "*.md", "*.yaml", "*.yml"]
+options  = ["--write"]
 
 [formatter.rustfmt]
-command = "rustfmt"
-options = ["--edition", "2021"]
-includes = ["*.rs"]
+command  = "rustfmt"
 excludes = []
+includes = ["*.rs"]
+options  = ["--edition", "2021"]

@@ -2,14 +2,14 @@
 name = "dev"
 
 [fetch.pkgs]
-name = "nixpkgs"
+args   = [{}]
 import = true
-args = [{}]
+name   = "nixpkgs"
 
 [fetch.fenix]
-name = "fenix"
+args   = [{ pkgs = true }]
 import = true
-args = [{ pkgs = true }]
+name   = "fenix"
 
 [std]
 features = ["lib"]

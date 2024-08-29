@@ -1,17 +1,18 @@
 [package]
-name = "manifest"
-version = "0.1.0"
 edition = "2021"
+name    = "manifest"
+version = "0.1.0"
 
 [dependencies]
-tracing.workspace = true
+semver.workspace        = true
+serde.workspace         = true
+thiserror.workspace     = true
+tracing.workspace       = true
 tracing-error.workspace = true
-serde.workspace = true
+url.workspace           = true
+
 unic-ucd-category = "^0.9"
-thiserror.workspace = true
-url.workspace = true
-semver.workspace = true
 
 [dev-dependencies]
+anyhow.workspace    = true
 toml_edit.workspace = true
-anyhow.workspace = true
