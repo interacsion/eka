@@ -4,9 +4,9 @@ name    = "resolve"
 version = "0.1.0"
 
 [dependencies]
+hex = "^0.4"
+
 anyhow.workspace    = true
 serde.workspace     = true
 toml_edit.workspace = true
 url.workspace       = true
-
-hex = "^0.4"
