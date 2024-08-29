@@ -84,6 +84,8 @@ impl fmt::Display for Sha1Hash {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use toml_edit::de::from_str;
+    use toml_edit::ser::to_string_pretty;
 
     #[test]
     fn serialize_lock() -> anyhow::Result<()> {
@@ -98,7 +100,11 @@ version = 1
 name = "foo"
 repo = "https://github.com/ekala-project/atom.git"
 sum = "318a942f39b56f6e9af878564f883d43307ceb87"
-deps = ["bar", "baz", "buz 0.2"]
+deps = [
+    "bar",
+    "baz",
+    "buz 0.2",
+]
 "#
         .trim_start();
 
@@ -113,9 +119,8 @@ deps = ["bar", "baz", "buz 0.2"]
                 }],
             }),
         };
-        let string = toml::to_string(&orig)?;
-
-        let lock: Lockfile = toml::from_str(string.as_str())?;
+        let string = to_string_pretty(&orig)?;
+        let lock: Lockfile = from_str(string.as_str())?;
         assert_eq!(orig_string, string);
         assert_eq!(orig, lock);
         Ok(())

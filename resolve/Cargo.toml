@@ -4,15 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-resolvo = { version = "^0.7", features = ["tokio"] }
-semver = { version = "^1", features = ["serde"] }
 hex = "^0.4"
 anyhow.workspace = true
-thiserror.workspace = true
-tracing.workspace = true
-tokio.workspace = true
 serde.workspace = true
 url.workspace = true
-toml.workspace = true
-tracing-error.workspace = true
-unic-ucd-category = "^0.9"
+toml_edit.workspace = true

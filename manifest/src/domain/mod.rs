@@ -1,10 +1,10 @@
-mod atom;
+mod category;
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 use thiserror::Error;
-
 use tracing::instrument;
 use tracing_error::TracedError;
 use unic_ucd_category::GeneralCategory;

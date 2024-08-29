@@ -1,4 +1,4 @@
-workspace.members = ["resolve"]
+workspace.members = ["manifest", "resolve"]
 
 [package]
 name = "eka"
@@ -7,22 +7,20 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "^4", features = ["derive"] }
-resolve.path = "resolve"
 anyhow.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-url.workspace = true
 tracing-error.workspace = true
 
 [workspace.dependencies]
 anyhow = "^1"
-thiserror = "^1"
 tokio = { version = "^1", features = ["full"] }
 tracing = "^0.1"
 tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
 serde = { version = "^1", features = ["derive"] }
-url = { version = "^2", features = ["serde"] }
-toml = { version = "^0.8", features = ["preserve_order"] }
+toml_edit = { version = "^0.22", features = ["serde"] }
+semver = { version = "^1", features = ["serde"] }
 tracing-error = "^0.2"
+thiserror = "^1"
+url = { version = "^2", features = ["serde"] }

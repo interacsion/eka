@@ -1,0 +1,17 @@
+[package]
+name = "manifest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tracing.workspace = true
+tracing-error.workspace = true
+serde.workspace = true
+unic-ucd-category = "^0.9"
+thiserror.workspace = true
+url.workspace = true
+semver.workspace = true
+
+[dev-dependencies]
+toml_edit.workspace = true
+anyhow.workspace = true
