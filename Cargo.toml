@@ -6,6 +6,8 @@ name    = "eka"
 version = "0.1.0"
 
 [dependencies]
+manifest.path = "manifest"
+
 anyhow.workspace             = true
 tokio.workspace              = true
 tracing.workspace            = true

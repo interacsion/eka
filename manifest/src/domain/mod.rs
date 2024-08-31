@@ -1,98 +1,43 @@
-mod category;
-
+use super::core::Manifest;
+use super::Name;
+use semver::VersionReq;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::ops::Deref;
-use std::str::FromStr;
-use thiserror::Error;
-use tracing::instrument;
-use tracing_error::TracedError;
-use unic_ucd_category::GeneralCategory;
+use std::collections::HashMap;
+use url::Url;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(try_from = "String")]
-struct Name(String);
-
-#[derive(Error, Debug)]
-enum NameError {
-    #[error("The `name` field cannot be empty.")]
-    Empty,
-    #[error("The `name` field cannot start with a number, apostrophe, dash or underscore")]
-    InvalidStart,
-    #[error("The `name` field contains invalid characters: '{0}'")]
-    InvalidCharacters(String),
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+struct Depend {
+    #[serde(flatten)]
+    core: Manifest,
+    deps: HashMap<Name, Dependency>,
 }
 
-impl Name {
-    #[instrument]
-    fn validate(s: &str) -> Result<(), TracedError<NameError>> {
-        if s.is_empty() {
-            return Err(TracedError::from(NameError::Empty));
-        }
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+struct Dependency {
+    version: VersionReq,
+    repo: Url,
+}
 
-        if let Some(c) = s.chars().next() {
-            if matches!(
-                GeneralCategory::of(c),
-                GeneralCategory::DecimalNumber | GeneralCategory::LetterNumber
-            ) || c == '_'
-                || c == '-'
-                || c == '\''
-            {
-                return Err(TracedError::from(NameError::InvalidStart));
-            }
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use toml_edit::de::from_str;
 
-        let invalid_chars: String = s.chars().filter(|&c| !Name::is_valid_char(c)).collect();
+    #[test]
+    fn de_depend() -> anyhow::Result<()> {
+        let atom_str = r#"
+            trait = "package"
+            [atom]
+            name = "foo"
+            version = "0.1.0"
 
-        if !invalid_chars.is_empty() {
-            return Err(TracedError::from(NameError::InvalidCharacters(
-                invalid_chars,
-            )));
-        }
+            [deps.foo]
+            version = "^1"
+            repo = "https://example.com/foo/bar.git"
+        "#;
+
+        from_str::<Depend>(atom_str)?;
 
         Ok(())
-    }
-    fn is_valid_char(c: char) -> bool {
-        matches!(
-            GeneralCategory::of(c),
-            GeneralCategory::LowercaseLetter
-                | GeneralCategory::UppercaseLetter
-                | GeneralCategory::TitlecaseLetter
-                | GeneralCategory::ModifierLetter
-                | GeneralCategory::OtherLetter
-                | GeneralCategory::DecimalNumber
-                | GeneralCategory::LetterNumber
-        ) || c == '-'
-            || c == '_'
-            || c == '\''
-    }
-}
-
-impl Deref for Name {
-    type Target = str;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for Name {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-impl FromStr for Name {
-    type Err = TracedError<NameError>;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Name::validate(s)?;
-        Ok(Name(s.to_string()))
-    }
-}
-
-impl TryFrom<String> for Name {
-    type Error = TracedError<NameError>;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Name::from_str(&value)
     }
 }
