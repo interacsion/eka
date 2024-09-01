@@ -12,10 +12,10 @@ use unic_ucd_category::GeneralCategory;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(try_from = "String")]
-struct Name(String);
+pub struct Name(String);
 
 #[derive(Error, Debug, PartialEq, Eq)]
-enum NameError {
+pub enum NameError {
     #[error("The `name` field cannot be empty.")]
     Empty,
     #[error("The `name` field cannot start with a number, apostrophe, dash or underscore")]

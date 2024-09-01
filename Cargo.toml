@@ -6,13 +6,18 @@ name    = "eka"
 version = "0.1.0"
 
 [dependencies]
+nom = "^7"
+
 manifest.path = "manifest"
 
 anyhow.workspace             = true
+semver.workspace             = true
+serde.workspace              = true
 tokio.workspace              = true
 tracing.workspace            = true
 tracing-error.workspace      = true
 tracing-subscriber.workspace = true
+url.workspace                = true
 
 clap = { version = "^4", features = ["derive"] }
 

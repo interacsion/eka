@@ -9,11 +9,10 @@ unic-ucd-category = "^0.9"
 semver.workspace        = true
 serde.workspace         = true
 thiserror.workspace     = true
+toml_edit.workspace     = true
 tracing.workspace       = true
 tracing-error.workspace = true
 url.workspace           = true
-toml_edit.workspace     = true
-strum = { version = "^0.26", features = ["derive", "strum_macros"] }
 
 [dev-dependencies]
 anyhow.workspace    = true
