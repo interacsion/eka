@@ -44,7 +44,7 @@ impl<'a> From<&'a str> for UriRef<'a> {
                             // not a port
                             digit1,
                             // not a user:pass@example.com
-                            recognize(tuple((take_until("@"), take_until(".")))),
+                            recognize(tuple((take_until("@"), take_until("."), take_until("/")))),
                         )))),
                     )),
                     |(before_colon, _, _)| {
@@ -94,6 +94,8 @@ mod tests {
     #[test]
     fn uri_snapshot() {
         let results: Vec<UriRef> = vec![
+            "alias:repo//atom@^2.0".into(),
+            "alias:atom@^2.1".into(),
             "alias:path.with/dot//my/atom@^2".into(),
             "git@github.com:owner/repo//path/to/atom@^1".into(),
             "https://example.com/owner/repo:8080//path/to/atom@^1".into(),

@@ -4,6 +4,16 @@ expression: results
 ---
 - scheme: ~
   alias: alias
+  frag: repo
+  atom: atom
+  version: ^2.0
+- scheme: ~
+  alias: alias
+  frag: ~
+  atom: atom
+  version: ^2.1
+- scheme: ~
+  alias: alias
   frag: path.with/dot
   atom: my/atom
   version: ^2
