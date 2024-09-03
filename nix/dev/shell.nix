@@ -12,5 +12,6 @@ pkgs.mkShell {
     taplo
     nodePackages.prettier
     toolchain
+    cargo-insta
   ];
 }

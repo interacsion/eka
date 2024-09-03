@@ -21,12 +21,16 @@ url.workspace                = true
 
 clap = { version = "^4", features = ["derive"] }
 
+[dev-dependencies]
+insta.workspace = true
+
 [workspace.dependencies]
 anyhow        = "^1"
 thiserror     = "^1"
 tracing       = "^0.1"
 tracing-error = "^0.2"
 
+insta              = { version = "^1", features = ["yaml"] }
 semver             = { version = "^1", features = ["serde"] }
 serde              = { version = "^1", features = ["derive"] }
 tokio              = { version = "^1", features = ["full"] }

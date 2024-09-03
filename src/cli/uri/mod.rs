@@ -1,14 +1,15 @@
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while},
-    character::complete::char,
-    combinator::{map, not, opt, peek, success},
+    character::complete::digit1,
+    combinator::{map, not, opt, peek, verify},
     sequence::tuple,
     IResult,
 };
+use serde::{Deserialize, Serialize};
 
 // TODO: not complete
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UriRef<'a> {
     scheme: Option<&'a str>,
     alias: Option<&'a str>,
@@ -35,19 +36,20 @@ impl<'a> From<&'a str> for UriRef<'a> {
 
         let alias = |input: &'a str| {
             opt(map(
-                alt((
-                    // ensure it is not a double colon
-                    tuple((take_until(":"), tag(":"), peek(not(char(':'))))),
-                    // triple colon indicates there is no additional path: `(:)<empty-path>(::)`
-                    tuple((take_until(":::"), tag(":"), success(()))),
-                )),
+                verify(
+                    tuple((take_until(":"), tag(":"), peek(not(alt((digit1,)))))),
+                    |(before_colon, _, _)| {
+                        #[allow(clippy::explicit_auto_deref)]
+                        // Fail if it's an SSH-style URL
+                        !<str>::contains(*before_colon, '@')
+                    },
+                ),
                 |(alias, _, _)| alias,
             ))(input)
-            .map(empty)
         };
 
         let frag = |input: &'a str| {
-            opt(map(tuple((take_until("::"), tag("::"))), |(frag, _)| frag))(input).map(empty)
+            opt(map(tuple((take_until("//"), tag("//"))), |(frag, _)| frag))(input).map(empty)
         };
 
         let atom = |input: &'a str| {
@@ -74,5 +76,23 @@ impl<'a> From<&'a str> for UriRef<'a> {
             atom,
             version,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn uri_snapshot() {
+        let results: Vec<UriRef> = vec![
+            "https://github.com/owner/repo//path/to/atom@^1".into(),
+            "https://hub:owner/repo//path/to/atom@^1".into(),
+            "hub:owner/repo//path/to/atom@^1".into(),
+            "git@github.com:owner/repo//path/to/atom@^1".into(),
+            "///path/to/atom".into(),
+            "//path/to/atom".into(),
+            "/path/to/atom@^0.8".into(),
+        ];
+        insta::assert_yaml_snapshot!(results);
     }
 }
