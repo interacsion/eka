@@ -1,0 +1,12 @@
+---
+source: manifest/src/domain/tests/mod.rs
+expression: "[from_str::<Depend>(atom_str)?]"
+---
+- trait: package
+  atom:
+    id: foo
+    version: 0.1.0
+  deps:
+    foo:
+      version: ^1
+      repo: "https://example.com/foo/bar.git"

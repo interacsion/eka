@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 pub mod core;
 mod domain;
 
@@ -10,7 +13,7 @@ use tracing::instrument;
 use tracing_error::TracedError;
 use unic_ucd_category::GeneralCategory;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, PartialOrd, Ord)]
 #[serde(try_from = "String")]
 pub struct Name(String);
 

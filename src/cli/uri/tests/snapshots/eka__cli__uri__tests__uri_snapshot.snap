@@ -1,5 +1,5 @@
 ---
-source: src/cli/uri/mod.rs
+source: src/cli/uri/tests/mod.rs
 expression: results
 ---
 - scheme: ~

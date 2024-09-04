@@ -6,6 +6,7 @@ version = "0.1.0"
 [dependencies]
 unic-ucd-category = "^0.9"
 
+anyhow.workspace        = true
 semver.workspace        = true
 serde.workspace         = true
 thiserror.workspace     = true
@@ -15,5 +16,4 @@ tracing-error.workspace = true
 url.workspace           = true
 
 [dev-dependencies]
-anyhow.workspace    = true
-toml_edit.workspace = true
+insta.workspace = true

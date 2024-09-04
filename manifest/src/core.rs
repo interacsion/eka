@@ -1,22 +1,22 @@
 use super::Name;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use toml_edit::de::from_str;
+use std::str::FromStr;
+use toml_edit::de;
 use toml_edit::DocumentMut;
-use url::Url;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Manifest {
     r#trait: Name,
     pub atom: Atom,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Atom {
-    name: Name,
+    id: Name,
     version: Version,
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
-    canon: Option<Url>,
 }
 
 impl Manifest {
@@ -27,7 +27,7 @@ impl Manifest {
         };
 
         if let Some(v) = doc.get("atom").and_then(|v| v.as_str()) {
-            if from_str::<Atom>(v).is_ok() {
+            if de::from_str::<Atom>(v).is_ok() {
                 return true;
             }
         }
@@ -36,33 +36,9 @@ impl Manifest {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use toml_edit::de::from_str;
-
-    #[test]
-    fn serde() -> anyhow::Result<()> {
-        let atom_str = r#"
-            trait = "package"
-            [atom]
-            name = "foo"
-            version = "0.1.0"
-        "#;
-
-        let atom = Manifest {
-            r#trait: "package".parse()?,
-            atom: Atom {
-                name: "foo".parse()?,
-                version: "0.1.0".parse()?,
-                description: None,
-                canon: None,
-            },
-        };
-
-        let atom2: Manifest = from_str(atom_str)?;
-
-        assert_eq!(atom2, atom);
-        Ok(())
+impl FromStr for Manifest {
+    type Err = de::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        de::from_str(s)
     }
 }

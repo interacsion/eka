@@ -1,0 +1,17 @@
+---
+source: manifest/src/tests/mod.rs
+expression: results
+---
+- trait: package
+  atom:
+    id: foo
+    version: 0.1.0
+- trait: deployment
+  atom:
+    id: bar
+    version: 0.2.0
+- trait: config
+  atom:
+    id: some
+    version: 1.2.0
+    description: Some config

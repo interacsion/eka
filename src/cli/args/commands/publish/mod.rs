@@ -1,4 +1,6 @@
+#[cfg(feature = "git")]
 mod git;
+
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -20,5 +22,6 @@ pub struct PublishArgs {
 #[derive(Parser)]
 pub struct VcsArgs {
     #[command(flatten)]
+    #[cfg(feature = "git")]
     pub git: git::GitArgs,
 }
