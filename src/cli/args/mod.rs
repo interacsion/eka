@@ -1,3 +1,4 @@
+pub mod commands;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -23,4 +24,7 @@ pub struct Args {
         verbatim_doc_comment
     )]
     pub verbosity: u8,
+
+    #[command(subcommand)]
+    command: commands::Commands,
 }

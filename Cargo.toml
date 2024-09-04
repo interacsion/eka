@@ -11,6 +11,7 @@ nom = "^7"
 manifest.path = "manifest"
 
 anyhow.workspace             = true
+gix.workspace                = true
 semver.workspace             = true
 serde.workspace              = true
 tokio.workspace              = true
@@ -26,6 +27,7 @@ insta.workspace = true
 
 [workspace.dependencies]
 anyhow        = "^1"
+gix           = "^0.66"
 thiserror     = "^1"
 tracing       = "^0.1"
 tracing-error = "^0.2"
