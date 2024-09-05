@@ -1,7 +1,7 @@
 use super::*;
 #[test]
 fn uri_snapshot() {
-    let results: Vec<UriRef> = vec![
+    let results: Vec<Ref> = vec![
         "alias:repo//atom@^2.0".into(),
         "alias:atom@^2.1".into(),
         "alias:path.with/dot//my/atom@^2".into(),

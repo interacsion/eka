@@ -13,18 +13,93 @@ use nom::{
 #[cfg(test)]
 use serde::{Deserialize, Serialize};
 
+/// Represents the parsed components of an atom reference URI.
+///
+/// This struct is an intermediate representation resulting from parsing a URI string
+/// in the format: `[scheme://][alias:[url-fragment//]]atom-path[@version]`
+///
+/// It is typically created through the `From<&str>` implementation, not constructed directly.
+///
+/// # Components
+///
+/// * `scheme`: The URI scheme (e.g., "https", "ssh"). Optional.
+/// * `alias`: A user-defined shorthand for a full or partial URL. Optional.
+///   - An alias must include at least a full domain but can be as long as desired.
+///   - Example: 'work' could be an alias for 'github.com/some-super-long-organization-name'
+/// * `frag`: A URL fragment that follows the alias, completing the URL if the alias is partial. Optional.
+/// * `atom`: The path to the specific atom within the given or local repository.
+/// * `version`: The version of the atom. Optional.
+///
+/// # Examples
+///
+/// Parsing a full URI with an alias:
+/// ```
+/// use eka::cli::uri::Ref;
+///
+/// let uri_str = "https://work:our-repo//path/to/atom@1.0.0";
+/// let uri_ref: Ref = uri_str.into();
+///
+/// assert_eq!(uri_ref.scheme, Some("https"));
+/// assert_eq!(uri_ref.alias, Some("work"));
+/// assert_eq!(uri_ref.frag, Some("our-repo"));
+/// assert_eq!(uri_ref.atom, Some("path/to/atom"));
+/// assert_eq!(uri_ref.version, Some("1.0.0"));
+/// ```
+///
+/// Parsing a URI with just an alias and atom path:
+/// ```
+/// use eka::cli::uri::Ref;
+///
+/// let uri_str = "work:our-repo//path/to/atom";
+/// let uri_ref: Ref = uri_str.into();
+///
+/// assert_eq!(uri_ref.scheme, None);
+/// assert_eq!(uri_ref.alias, Some("work"));
+/// assert_eq!(uri_ref.frag, Some("our-repo"));
+/// assert_eq!(uri_ref.atom, Some("path/to/atom"));
+/// assert_eq!(uri_ref.version, None);
+/// ```
+///
+/// Parsing a minimal URI (only atom path):
+/// ```
+/// use eka::cli::uri::Ref;
+///
+/// let uri_str = "path/to/atom";
+/// let uri_ref: Ref = uri_str.into();
+///
+/// assert_eq!(uri_ref.scheme, None);
+/// assert_eq!(uri_ref.alias, None);
+/// assert_eq!(uri_ref.frag, None);
+/// assert_eq!(uri_ref.atom, Some("path/to/atom"));
+/// assert_eq!(uri_ref.version, None);
+/// ```
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Serialize, Deserialize))]
-pub struct UriRef<'a> {
-    scheme: Option<&'a str>,
-    alias: Option<&'a str>,
-    frag: Option<&'a str>,
-    atom: Option<&'a str>,
-    version: Option<&'a str>,
+pub struct Ref<'a> {
+    /// The URI scheme (e.g., "https", "ssh"), if present.
+    pub scheme: Option<&'a str>,
+    /// An alias for a full or partial URL, if present.
+    pub alias: Option<&'a str>,
+    /// A URL fragment that completes the URL when used with a partial alias, if present.
+    pub frag: Option<&'a str>,
+    /// The path to the specific atom within the repository.
+    pub atom: Option<&'a str>,
+    /// The version of the atom, if specified.
+    pub version: Option<&'a str>,
 }
 
-impl<'a> From<&'a str> for UriRef<'a> {
-    /// Parse a string representation of an atom URI into a struct of its parts.
+impl<'a> From<&'a str> for Ref<'a> {
+    /// Parses a string slice into a `Ref`.
+    ///
+    /// This is the primary way to create a `Ref` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - A string slice containing the URI to parse.
+    ///
+    /// # Returns
+    ///
+    /// A `Ref` instance representing the parsed URI.
     fn from(input: &'a str) -> Self {
         let empty = |(rest, opt): (&'a _, Option<&'a str>)| {
             (
@@ -84,7 +159,7 @@ impl<'a> From<&'a str> for UriRef<'a> {
         let (_rem, (scheme, alias, frag, atom, version)) =
             tuple((scheme, alias, frag, atom, version))(input).unwrap_or_default();
 
-        UriRef {
+        Ref {
             scheme,
             alias,
             frag,

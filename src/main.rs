@@ -1,6 +1,5 @@
-mod cli;
 use clap::Parser;
-use cli::Args;
+use eka::cli::{self, Args};
 
 #[tokio::main]
 #[tracing::instrument]
