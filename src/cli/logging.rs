@@ -29,7 +29,7 @@ pub fn init_logger(verbosity: u8, quiet: bool) {
     let env_filter = EnvFilter::from_default_env().add_directive(log_level.into());
 
     tracing_subscriber::registry()
-        .with(fmt::layer())
+        .with(fmt::layer().with_writer(std::io::stderr))
         .with(env_filter)
         .with(ErrorLayer::default())
         .init();
