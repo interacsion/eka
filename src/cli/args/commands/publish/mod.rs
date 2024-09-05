@@ -25,3 +25,7 @@ pub struct VcsArgs {
     #[cfg(feature = "git")]
     pub git: git::GitArgs,
 }
+
+pub fn run(_args: PublishArgs) -> anyhow::Result<()> {
+    Ok(())
+}

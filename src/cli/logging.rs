@@ -4,8 +4,12 @@ use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use tracing_subscriber::fmt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-fn get_log_level(verbosity: u8) -> LevelFilter {
-    if let Ok(rust_log) = std::env::var("RUST_LOG") {
+fn get_log_level(verbosity: u8, quiet: bool) -> LevelFilter {
+    if quiet {
+        return LevelFilter::ERROR;
+    }
+
+    if let Ok(rust_log) = std::env::var(EnvFilter::DEFAULT_ENV) {
         if let Ok(level) = LevelFilter::from_str(&rust_log) {
             return level;
         }
@@ -19,8 +23,8 @@ fn get_log_level(verbosity: u8) -> LevelFilter {
     }
 }
 
-pub fn init_logger(verbosity: u8) {
-    let log_level = get_log_level(verbosity);
+pub fn init_logger(verbosity: u8, quiet: bool) {
+    let log_level = get_log_level(verbosity, quiet);
 
     let env_filter = EnvFilter::from_default_env().add_directive(log_level.into());
 

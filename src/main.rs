@@ -6,8 +6,7 @@ use eka::cli::{self, Args};
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    cli::init_logger(args.verbosity);
-    cli::run(args)?;
+    cli::init_logger(args.verbosity, args.quiet);
 
-    Ok(())
+    cli::run(args).await
 }

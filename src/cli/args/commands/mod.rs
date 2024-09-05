@@ -19,7 +19,9 @@ pub enum Commands {
     Publish(publish::PublishArgs),
 }
 
-pub fn run(_args: Args) -> anyhow::Result<()> {
-    // Dispatch to appropriate command based on args
+pub async fn run(args: Args) -> anyhow::Result<()> {
+    match args.command {
+        Commands::Publish(args) => publish::run(args)?,
+    }
     Ok(())
 }
