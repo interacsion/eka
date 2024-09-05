@@ -1,9 +1,10 @@
 use clap::Parser;
 use eka::cli::{self, Args};
+use std::process::ExitCode;
 
 #[tokio::main]
 #[tracing::instrument]
-async fn main() {
+async fn main() -> ExitCode {
     let args = Args::parse();
     let (v, q) = (args.verbosity, args.quiet);
 
@@ -15,6 +16,7 @@ async fn main() {
         } else {
             tracing::error!("{}", e);
         }
-        std::process::exit(1);
+        return ExitCode::FAILURE;
     }
+    ExitCode::SUCCESS
 }
