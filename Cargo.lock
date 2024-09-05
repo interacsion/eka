@@ -300,6 +300,7 @@ dependencies = [
  "nom",
  "semver",
  "serde",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-error",

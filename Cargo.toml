@@ -13,6 +13,7 @@ manifest.path = "manifest"
 anyhow.workspace             = true
 semver.workspace             = true
 serde.workspace              = true
+thiserror.workspace          = true
 tokio.workspace              = true
 tracing.workspace            = true
 tracing-error.workspace      = true

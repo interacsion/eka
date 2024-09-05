@@ -21,7 +21,7 @@ pub enum Commands {
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
     match args.command {
-        Commands::Publish(args) => publish::run(args)?,
+        Commands::Publish(args) => publish::run(args).await?,
     }
     Ok(())
 }

@@ -1,6 +1,8 @@
 #[cfg(feature = "git")]
 mod git;
 
+use crate::cli::vcs::{self, Vcs};
+
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -26,6 +28,11 @@ pub struct VcsArgs {
     pub git: git::GitArgs,
 }
 
-pub fn run(_args: PublishArgs) -> anyhow::Result<()> {
+pub async fn run(_args: PublishArgs) -> anyhow::Result<()> {
+    let vcs = vcs::detect()?;
+    match vcs {
+        #[cfg(feature = "git")]
+        Vcs::Git(path) => git::run(path).await?,
+    }
     Ok(())
 }

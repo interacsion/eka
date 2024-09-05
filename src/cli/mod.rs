@@ -1,6 +1,7 @@
 mod args;
 mod logging;
 pub mod uri;
+mod vcs;
 
 pub use args::commands::run;
 pub use args::Args;

@@ -19,7 +19,7 @@ pub struct Name(String);
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NameError {
-    #[error("The `name` field cannot be empty.")]
+    #[error("The `name` field cannot be empty")]
     Empty,
     #[error("The `name` field cannot start with a number, apostrophe, dash or underscore")]
     InvalidStart,
