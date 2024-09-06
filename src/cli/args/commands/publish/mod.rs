@@ -1,7 +1,7 @@
 #[cfg(feature = "git")]
 mod git;
 
-use crate::cli::vcs::{self, Vcs};
+use crate::cli::vcs::Vcs;
 
 use clap::Parser;
 use std::path::PathBuf;
@@ -16,7 +16,6 @@ pub struct PublishArgs {
     /// Path(s) to the atom(s) to publish
     #[arg(required_unless_present = "recursive")]
     path: Vec<PathBuf>,
-
     #[command(flatten)]
     pub vcs_args: VcsArgs,
 }
@@ -28,11 +27,10 @@ pub struct VcsArgs {
     pub git: git::GitArgs,
 }
 
-pub async fn run(_args: PublishArgs) -> anyhow::Result<()> {
-    let vcs = vcs::detect()?;
+pub async fn run(vcs: Vcs, args: PublishArgs) -> anyhow::Result<()> {
     match vcs {
         #[cfg(feature = "git")]
-        Vcs::Git(path) => git::run(path).await?,
+        Vcs::Git(repo) => git::run(repo, args).await?,
     }
     Ok(())
 }

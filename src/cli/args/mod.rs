@@ -12,7 +12,7 @@ pub struct Args {
 }
 
 #[derive(Parser, Clone, Copy, Debug)]
-#[command(next_help_heading = "Git Options")]
+#[command(next_help_heading = "Log Options")]
 pub struct LogArgs {
     /// Set the level of verbosity
     ///

@@ -1,64 +1,45 @@
-use std::path::{Path, PathBuf};
+use super::logging::LogValue;
 use thiserror::Error;
 
 #[cfg(feature = "git")]
 use gix::{
-    discover::{self, repository::Path as RepoPath},
-    sec::Trust,
+    discover::upwards::Options,
+    sec::{trust::Mapping, Trust},
+    ThreadSafeRepository,
 };
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug)]
 pub enum VcsError {
-    #[error("No supported repository found in this directory or its parents")]
-    None,
+    // #[error("No supported repository found in this directory or its parents")]
+    // FailedDetection,
+    #[error(r#""{0}""#)]
+    Discover(#[from] gix::discover::Error),
 }
 
 #[non_exhaustive]
+#[derive(Clone, Debug)]
 pub enum Vcs {
     #[cfg(feature = "git")]
-    Git(PathBuf),
+    Git(ThreadSafeRepository),
 }
 
+#[tracing::instrument(err)]
 pub fn detect() -> Result<Vcs, VcsError> {
     #[cfg(feature = "git")]
     {
-        if let Ok((r, t)) = discover::upwards(Path::new(".")) {
-            let path = match r {
-                RepoPath::LinkedWorkTree {
-                    work_dir,
-                    git_dir: _,
-                } => {
-                    tracing::debug!(
-                        message = "Detected linked Git worktree",
-                        path = format!("{}", work_dir.display()),
-                    );
-                    work_dir
-                }
-                RepoPath::WorkTree(p) => {
-                    tracing::debug!(
-                        message = "Detected Git repository",
-                        path = format!("{}", p.display()),
-                    );
-                    p
-                }
-                RepoPath::Repository(p) => {
-                    tracing::warn!(
-                        message = "Detected bare Git repository",
-                        path = format!("{}", p.display()),
-                    );
-                    p
-                }
-            };
-
-            match t {
-                Trust::Reduced => tracing::warn!(
-                    message = "Ignoring untrusted Git repository",
-                    path = format!("{}", path.display()),
-                ),
-                Trust::Full => return Ok(Vcs::Git(path)),
-            }
-        }
+        let opts = Options {
+            required_trust: Trust::Full,
+            ..Default::default()
+        };
+        let repo = ThreadSafeRepository::discover_opts(".", opts, Mapping::default())?;
+        tracing::debug!(
+            message = "Detected Git repository",
+            git_dir = %repo.path().as_json(),
+            work_dir = %repo.work_dir().as_json()
+        );
+        return Ok(Vcs::Git(repo));
     }
 
-    Err(VcsError::None)
+    // TODO: not needed until we have another supported VCS
+    // Err(VcsError::FailedDetection)
 }

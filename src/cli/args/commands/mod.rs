@@ -1,5 +1,6 @@
 mod publish;
 use super::Args;
+use crate::cli::vcs;
 use clap::Subcommand;
 
 #[derive(Subcommand)]
@@ -21,7 +22,10 @@ pub enum Commands {
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
     match args.command {
-        Commands::Publish(args) => publish::run(args).await?,
+        Commands::Publish(args) => {
+            let vcs = vcs::detect()?;
+            publish::run(vcs, args).await?
+        }
     }
     Ok(())
 }

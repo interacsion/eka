@@ -1,4 +1,5 @@
 use super::args::LogArgs;
+use serde::Serialize;
 use std::str::FromStr;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
@@ -34,4 +35,14 @@ pub fn init_logger(args: LogArgs) {
         .with(env_filter)
         .with(ErrorLayer::default())
         .init();
+}
+
+pub trait LogValue {
+    fn as_json(&self) -> String;
+}
+
+impl<T: Serialize> LogValue for T {
+    fn as_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "null".to_string())
+    }
 }

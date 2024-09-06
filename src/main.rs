@@ -9,13 +9,7 @@ async fn main() -> ExitCode {
 
     cli::init_logger(log);
 
-    if let Err(err) = cli::run(args).await {
-        if log.verbosity > 1 && !log.quiet {
-            // only print backtraces on debug or above
-            tracing::error!("{:?}", err);
-        } else {
-            tracing::error!("{}", err);
-        }
+    if (cli::run(args).await).is_err() {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
