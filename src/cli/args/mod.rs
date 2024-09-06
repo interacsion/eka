@@ -4,6 +4,16 @@ use clap::Parser;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
+    #[command(flatten)]
+    pub log: LogArgs,
+
+    #[command(subcommand)]
+    command: commands::Commands,
+}
+
+#[derive(Parser, Clone, Copy, Debug)]
+#[command(next_help_heading = "Git Options")]
+pub struct LogArgs {
     /// Set the level of verbosity
     ///
     /// This flag can be used multiple times to increase verbosity:
@@ -37,7 +47,4 @@ pub struct Args {
     /// typically in non-interactive or automated environments.
     #[arg(short, long, global = true, verbatim_doc_comment)]
     pub quiet: bool,
-
-    #[command(subcommand)]
-    command: commands::Commands,
 }

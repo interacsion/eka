@@ -9,8 +9,6 @@ use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 use thiserror::Error;
-use tracing::instrument;
-use tracing_error::TracedError;
 use unic_ucd_category::GeneralCategory;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, PartialOrd, Ord)]
@@ -28,10 +26,9 @@ pub enum NameError {
 }
 
 impl Name {
-    #[instrument]
-    fn validate(s: &str) -> Result<(), TracedError<NameError>> {
+    fn validate(s: &str) -> Result<(), NameError> {
         if s.is_empty() {
-            return Err(TracedError::from(NameError::Empty));
+            return Err(NameError::Empty);
         }
 
         if let Some(c) = s.chars().next() {
@@ -42,16 +39,14 @@ impl Name {
                 || c == '-'
                 || c == '\''
             {
-                return Err(TracedError::from(NameError::InvalidStart));
+                return Err(NameError::InvalidStart);
             }
         }
 
         let invalid_chars: String = s.chars().filter(|&c| !Name::is_valid_char(c)).collect();
 
         if !invalid_chars.is_empty() {
-            return Err(TracedError::from(NameError::InvalidCharacters(
-                invalid_chars,
-            )));
+            return Err(NameError::InvalidCharacters(invalid_chars));
         }
 
         Ok(())
@@ -85,7 +80,7 @@ impl fmt::Display for Name {
     }
 }
 impl FromStr for Name {
-    type Err = TracedError<NameError>;
+    type Err = NameError;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Name::validate(s)?;
@@ -94,7 +89,7 @@ impl FromStr for Name {
 }
 
 impl TryFrom<String> for Name {
-    type Error = TracedError<NameError>;
+    type Error = NameError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Name::from_str(&value)

@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 use thiserror::Error;
-use tracing_error::TracedError;
 
 #[cfg(feature = "git")]
 use gix::{
@@ -20,8 +19,7 @@ pub enum Vcs {
     Git(PathBuf),
 }
 
-#[tracing::instrument]
-pub fn detect() -> Result<Vcs, TracedError<VcsError>> {
+pub fn detect() -> Result<Vcs, VcsError> {
     #[cfg(feature = "git")]
     {
         if let Ok((r, t)) = discover::upwards(Path::new(".")) {
@@ -62,5 +60,5 @@ pub fn detect() -> Result<Vcs, TracedError<VcsError>> {
         }
     }
 
-    Err(TracedError::from(VcsError::None))
+    Err(VcsError::None)
 }

@@ -3,20 +3,21 @@ use eka::cli::{self, Args};
 use std::process::ExitCode;
 
 #[tokio::main]
-#[tracing::instrument]
 async fn main() -> ExitCode {
     let args = Args::parse();
-    let (v, q) = (args.verbosity, args.quiet);
+    let Args { log, .. } = args;
 
-    cli::init_logger(v, q);
+    cli::init_logger(log);
 
-    if let Err(e) = cli::run(args).await {
-        if v > 0 && !q {
-            tracing::error!("{:?}", e);
+    if let Err(err) = cli::run(args).await {
+        if log.verbosity > 1 && !log.quiet {
+            // only print backtraces on debug or above
+            tracing::error!("{:?}", err);
         } else {
-            tracing::error!("{}", e);
+            tracing::error!("{}", err);
         }
-        return ExitCode::FAILURE;
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
     }
-    ExitCode::SUCCESS
 }

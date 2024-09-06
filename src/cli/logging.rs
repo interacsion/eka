@@ -1,11 +1,12 @@
+use super::args::LogArgs;
 use std::str::FromStr;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use tracing_subscriber::fmt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-fn get_log_level(verbosity: u8, quiet: bool) -> LevelFilter {
-    if quiet {
+fn get_log_level(args: LogArgs) -> LevelFilter {
+    if args.quiet {
         return LevelFilter::ERROR;
     }
 
@@ -15,7 +16,7 @@ fn get_log_level(verbosity: u8, quiet: bool) -> LevelFilter {
         }
     }
 
-    match verbosity {
+    match args.verbosity {
         0 => LevelFilter::WARN,
         1 => LevelFilter::INFO,
         2 => LevelFilter::DEBUG,
@@ -23,8 +24,8 @@ fn get_log_level(verbosity: u8, quiet: bool) -> LevelFilter {
     }
 }
 
-pub fn init_logger(verbosity: u8, quiet: bool) {
-    let log_level = get_log_level(verbosity, quiet);
+pub fn init_logger(args: LogArgs) {
+    let log_level = get_log_level(args);
 
     let env_filter = EnvFilter::from_default_env().add_directive(log_level.into());
 
