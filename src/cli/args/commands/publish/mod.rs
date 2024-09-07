@@ -17,7 +17,7 @@ pub struct PublishArgs {
     #[arg(required_unless_present = "recursive")]
     path: Vec<PathBuf>,
     #[command(flatten)]
-    pub vcs_args: VcsArgs,
+    pub vcs: VcsArgs,
 }
 
 #[derive(Parser)]
@@ -30,7 +30,9 @@ pub struct VcsArgs {
 pub async fn run(vcs: Vcs, args: PublishArgs) -> anyhow::Result<()> {
     match vcs {
         #[cfg(feature = "git")]
-        Vcs::Git(repo) => git::run(repo, args).await?,
+        Vcs::Git(repo) => {
+            git::run(repo, args).await?;
+        }
     }
     Ok(())
 }
