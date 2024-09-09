@@ -167,21 +167,35 @@ impl<'a> PublishGitContext<'a> {
         // unwrap is safe as we won't enter this block when workdir doesn't exist
         let abs_repo = fs::canonicalize(rel_repo).unwrap();
         let current = self.repo.current_dir();
-        current.join(atom_path).clean().strip_prefix(&abs_repo).map(Path::to_path_buf).or_else(|e| {
-                    if atom_path.is_absolute() {
-                        let cleaned = atom_path.clean();
-                        // absolute paths always start with `/` (or its platform equivalent), so unwrap is safe
-                        let p = cleaned.strip_prefix(Path::new("/")).unwrap();
-                        Ok(abs_repo.join(p).clean().strip_prefix(&abs_repo)?.to_path_buf())
-                    } else {
-                        Err(e)
-                    }
-                }).map_err(|e| {
-                    tracing::warn!(message = "Ignoring path outside repo root", path = %atom_path.display());
-                    e
-                })
-                .map(|path| self.get_id(&path))
-                .ok().flatten()
+        let rel = current
+            .join(atom_path)
+            .clean()
+            .strip_prefix(&abs_repo)
+            .map(Path::to_path_buf);
+
+        rel.or_else(|e| {
+            if !atom_path.is_absolute() {
+                return Err(e);
+            }
+            let cleaned = atom_path.clean();
+            // Preserve the platform-specific root
+            let p = cleaned.strip_prefix(Path::new("/")).unwrap();
+            abs_repo
+                .join(p)
+                .clean()
+                .strip_prefix(&abs_repo)
+                .map(ToOwned::to_owned)
+        })
+        .map_err(|e| {
+            tracing::warn!(
+                message = "Ignoring path outside repo root",
+                path = %atom_path.display()
+            );
+            e
+        })
+        .map(|path| self.get_id(&path))
+        .ok()
+        .flatten()
     }
 
     fn verify_manifest(&self, entry: &Entry, path: &Path) -> Option<ObjectId> {
