@@ -1,10 +1,14 @@
 use super::PublishArgs;
 use clap::Parser;
-use gix::{discover, remote::find::existing, Commit, ObjectId, ThreadSafeRepository};
+use gix::{
+    discover, object::tree::Entry, remote::find::existing, Commit, ObjectId, ThreadSafeRepository,
+};
+use manifest::core::Manifest;
 use path_clean::PathClean;
 use std::{
     fs,
     hash::{Hash, Hasher},
+    io::{self, Read},
     path::{Path, PathBuf},
 };
 use thiserror::Error;
@@ -103,39 +107,61 @@ impl<'a> PublishGitContext<'a> {
         })
     }
 
+    fn get_ids<C>(&self, paths: C) -> Vec<AtomId>
+    where
+        C: IntoIterator<Item = PathBuf>,
+    {
+        paths
+            .into_iter()
+            .filter_map(|path| {
+                let atom_path = if matches!(path.extension(), Some(ext) if ext == "atom") {
+                    path
+                } else {
+                    path.with_extension("atom")
+                };
+                self.repo.work_dir().map_or_else(
+                    || self.get_id(&atom_path),
+                    |rel_repo| self.get_local_id(rel_repo, &atom_path),
+                )
+            })
+            .collect()
+    }
+
     fn get_id(&self, path: &PathBuf) -> Option<AtomId> {
+        let mut exists = false;
         let atom_id = self
             .tree
             .clone()
             .peel_to_entry_by_path(path)
             .ok()
             .flatten()
-            .map(|entry| entry.oid().to_owned());
+            .and_then(|entry| {
+                self.verify_manifest(&entry, path).or_else(|| {
+                    exists = true;
+                    None
+                })
+            });
         let atom_dir_id = self
             .tree
             .clone()
             .peel_to_entry_by_path(path.with_extension(""))
             .ok()
             .flatten()
-            .and_then(|entry| {
-                if entry.mode().is_tree() {
-                    Some(entry.oid().to_owned())
-                } else {
-                    None
-                }
-            });
+            .and_then(|entry| entry.mode().is_tree().then_some(entry.oid().to_owned()));
         if let Some(id) = atom_id {
             Some(AtomId {
                 manifest: id,
                 directory: atom_dir_id,
             })
         } else {
-            tracing::warn!(
-                message = "Atom does not exist in history",
-                path = %path.display(),
-                commit = %self.commit.id(),
-                r#ref = %self.r#ref.name().as_bstr()
-            );
+            if !exists {
+                tracing::warn!(
+                    message = "Atom does not exist in history",
+                    path = %path.display(),
+                    commit = %self.commit.id(),
+                    r#ref = %self.r#ref.name().as_bstr()
+                );
+            }
             None
         }
     }
@@ -161,23 +187,38 @@ impl<'a> PublishGitContext<'a> {
                 .ok().flatten()
     }
 
-    fn get_ids<C>(&self, paths: C) -> Vec<AtomId>
-    where
-        C: IntoIterator<Item = PathBuf>,
-    {
-        paths
-            .into_iter()
-            .filter_map(|path| {
-                let atom_path = if matches!(path.extension(), Some(ext) if ext == "atom") {
-                    path
-                } else {
-                    path.with_extension("atom")
-                };
-                self.repo.work_dir().map_or_else(
-                    || self.get_id(&atom_path),
-                    |rel_repo| self.get_local_id(rel_repo, &atom_path),
-                )
+    fn verify_manifest(&self, entry: &Entry, path: &Path) -> Option<ObjectId> {
+        if !entry.mode().is_blob() {
+            return None;
+        }
+
+        let content = read_blob(entry, |reader| {
+            let mut content = String::new();
+            reader.read_to_string(&mut content)?;
+            Ok(content)
+        })?;
+
+        Manifest::is(&content)
+            .map(|_| entry.oid().to_owned())
+            .map_err(|e| {
+                tracing::warn!(
+                    message = "Ignoring invalid atom manifest",
+                    path = %path.display(),
+                    commit = %self.commit.id(),
+                    oid = %entry.oid(),
+                    error = %format!("'{}'", e)
+                );
+                e
             })
-            .collect()
+            .ok()
     }
+}
+
+fn read_blob<F, R>(entry: &Entry, mut f: F) -> Option<R>
+where
+    F: FnMut(&mut dyn Read) -> io::Result<R>,
+{
+    let object = entry.object().ok()?;
+    let mut reader = object.data.as_slice();
+    f(&mut reader).ok()
 }

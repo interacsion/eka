@@ -20,19 +20,16 @@ pub struct Atom {
 }
 
 impl Manifest {
-    pub fn is(content: &str) -> bool {
-        let doc = match content.parse::<DocumentMut>() {
-            Ok(doc) => doc,
-            Err(_) => return false,
-        };
+    pub fn is(content: &str) -> anyhow::Result<()> {
+        let doc = content.parse::<DocumentMut>()?;
 
-        if let Some(v) = doc.get("atom").and_then(|v| v.as_str()) {
-            if de::from_str::<Atom>(v).is_ok() {
-                return true;
-            }
+        if let Some(v) = doc.get("atom").map(|v| v.to_string()) {
+            de::from_str::<Atom>(&v)?;
+            Ok(())
+        } else {
+            // TODO: make a proper error type
+            Err(anyhow::format_err!("Manifest is missing the `[atom]` key"))
         }
-
-        false
     }
 }
 
