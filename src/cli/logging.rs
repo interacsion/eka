@@ -1,5 +1,7 @@
 use super::args::LogArgs;
 use serde::Serialize;
+use std::error;
+use std::fmt::Display;
 use std::str::FromStr;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
@@ -38,11 +40,44 @@ pub fn init_logger(args: LogArgs) {
 }
 
 pub trait LogValue {
-    fn as_json(&self) -> String;
+    fn as_json(&self) -> String
+    where
+        Self: Serialize;
+    fn delimited(&self) -> String
+    where
+        Self: Display;
+    fn log_err<T, E>(self) -> Result<T, E>
+    where
+        Self: Sized + Into<Result<T, E>>,
+        E: Display + error::Error + LogValue;
 }
 
-impl<T: Serialize> LogValue for T {
-    fn as_json(&self) -> String {
+impl<T> LogValue for T {
+    fn as_json(&self) -> String
+    where
+        Self: Serialize,
+    {
         serde_json::to_string(self).unwrap_or_else(|_| "null".to_string())
     }
+    fn delimited(&self) -> String
+    where
+        Self: Display,
+    {
+        format!("'{}'", self)
+    }
+    fn log_err<P, E>(self) -> Result<P, E>
+    where
+        Self: Sized + Into<Result<P, E>>,
+        E: Display + error::Error + LogValue,
+    {
+        self.into().map_err(log_error)
+    }
+}
+
+fn log_error<E>(e: E) -> E
+where
+    E: Display + error::Error + LogValue,
+{
+    tracing::error!(error = %e.delimited());
+    e
 }

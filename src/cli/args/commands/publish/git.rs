@@ -1,4 +1,5 @@
 use super::PublishArgs;
+use crate::cli::logging::LogValue;
 use clap::Parser;
 use gix::{
     discover, object::tree::Entry, remote::find::existing, Commit, ObjectId, ThreadSafeRepository,
@@ -24,12 +25,22 @@ enum GitError {
 #[derive(Parser)]
 #[command(next_help_heading = "Git Options")]
 pub struct GitArgs {
-    /// The repositories remote to publish the atom(s) to
-    #[arg(long, default_value = "origin")]
+    /// The target remote to publish the atom(s) to
+    #[arg(long, short = 't', default_value = "origin", name = "TARGET")]
     pub remote: String,
-    /// The ref to publish the atom(s) from
-    #[arg(long, default_value = "HEAD")]
-    pub r#ref: String,
+    /// The revision to publish the atom(s) from
+    ///
+    /// Specifies a revision using Git's extended SHA-1 syntax.
+    /// This can be a commit hash, branch name, tag, or a relative
+    /// reference like HEAD~3 or master@{yesterday}.
+    #[arg(
+        long,
+        short,
+        default_value = "HEAD",
+        verbatim_doc_comment,
+        name = "REVSPEC"
+    )]
+    pub spec: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,7 +53,6 @@ struct PublishGitContext<'a> {
     repo: &'a gix::Repository,
     tree: gix::Tree<'a>,
     commit: Commit<'a>,
-    r#ref: gix::Reference<'a>,
     remote: gix::Remote<'a>,
 }
 
@@ -72,29 +82,18 @@ impl Hash for AtomId {
 
 impl<'a> PublishGitContext<'a> {
     async fn new(repo: &'a gix::Repository, args: GitArgs) -> anyhow::Result<Self> {
-        let GitArgs { remote, r#ref } = args;
-        let remote = async {
-            repo.find_remote(remote.as_str()).map_err(|e| {
-                tracing::error!(error = %format!("'{e}'"));
-                e
-            })
-        };
+        let GitArgs { remote, spec } = args;
+        let remote = async { repo.find_remote(remote.as_str()).log_err() };
 
-        let r#ref = async {
-            repo.find_reference(r#ref.as_str()).map_err(|e| {
-                tracing::error!(error = %format!("'{e}'"), r#ref);
-                e
-            })
+        let commit = async {
+            repo.rev_parse_single(spec.as_str())
+                .log_err()
+                .map(|s| repo.find_commit(s).log_err())
         };
 
         // print both errors before returning one
-        let (remote, r#ref) = tokio::join!(remote, r#ref);
-        let (remote, r#ref) = (remote?, r#ref?);
-
-        let commit = {
-            let oid = repo.rev_parse_single(r#ref.name())?;
-            repo.find_object(oid)?.try_into_commit()
-        }?;
+        let (remote, commit) = tokio::join!(remote, commit);
+        let (remote, commit) = (remote?, commit??);
 
         let tree = commit.tree()?;
 
@@ -103,7 +102,6 @@ impl<'a> PublishGitContext<'a> {
             tree,
             commit,
             remote,
-            r#ref,
         })
     }
 
@@ -159,7 +157,6 @@ impl<'a> PublishGitContext<'a> {
                     message = "Atom does not exist in history",
                     path = %path.display(),
                     commit = %self.commit.id(),
-                    r#ref = %self.r#ref.name().as_bstr()
                 );
             }
             None
