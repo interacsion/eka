@@ -23,6 +23,10 @@ url.workspace                = true
 
 clap       = { version = "^4", features = ["derive"] }
 gix        = { workspace = true, optional = true }
+gix-actor  = "^0.32"
+gix-date   = "^0.9"
+gix-object = "^0.44"
+gix-ref    = "^0.47"
 path-clean = "^1"
 
 [dev-dependencies]

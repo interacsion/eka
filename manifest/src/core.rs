@@ -13,19 +13,19 @@ pub struct Manifest {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Atom {
-    id: Name,
-    version: Version,
+    pub id: Name,
+    pub version: Version,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 }
 
 impl Manifest {
-    pub fn is(content: &str) -> anyhow::Result<()> {
+    pub fn is(content: &str) -> anyhow::Result<Atom> {
         let doc = content.parse::<DocumentMut>()?;
 
         if let Some(v) = doc.get("atom").map(|v| v.to_string()) {
-            de::from_str::<Atom>(&v)?;
-            Ok(())
+            let atom = de::from_str::<Atom>(&v)?;
+            Ok(atom)
         } else {
             // TODO: make a proper error type
             Err(anyhow::format_err!("Manifest is missing the `[atom]` key"))
