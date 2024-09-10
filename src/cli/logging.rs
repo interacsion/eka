@@ -1,4 +1,4 @@
-use super::args::LogArgs;
+use super::LogArgs;
 use serde::Serialize;
 use std::error;
 use std::fmt::Display;
@@ -39,7 +39,7 @@ pub fn init_logger(args: LogArgs) {
         .init();
 }
 
-pub trait LogValue {
+pub(crate) trait LogValue {
     fn as_json(&self) -> String
     where
         Self: Serialize;

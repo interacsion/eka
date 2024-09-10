@@ -77,15 +77,15 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(test, derive(Serialize, Deserialize))]
 pub struct Ref<'a> {
     /// The URI scheme (e.g., "https", "ssh"), if present.
-    pub scheme: Option<&'a str>,
+    scheme: Option<&'a str>,
     /// An alias for a full or partial URL, if present.
-    pub alias: Option<&'a str>,
+    alias: Option<&'a str>,
     /// A URL fragment that completes the URL when used with a partial alias, if present.
-    pub frag: Option<&'a str>,
+    frag: Option<&'a str>,
     /// The path to the specific atom within the repository.
-    pub atom: Option<&'a str>,
+    atom: Option<&'a str>,
     /// The version of the atom, if specified.
-    pub version: Option<&'a str>,
+    version: Option<&'a str>,
 }
 
 impl<'a> From<&'a str> for Ref<'a> {

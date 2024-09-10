@@ -4,7 +4,7 @@ use crate::cli::vcs;
 use clap::Subcommand;
 
 #[derive(Subcommand)]
-pub enum Commands {
+pub(crate) enum Commands {
     /// Package and publish atoms directly within the project's VCS repository.
     ///
     /// This command implements a novel, decentralized publishing strategy:

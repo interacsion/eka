@@ -29,10 +29,10 @@ enum GitError {
 
 #[derive(Parser)]
 #[command(next_help_heading = "Git Options")]
-pub struct GitArgs {
+pub(crate) struct GitArgs {
     /// The target remote to publish the atom(s) to
     #[arg(long, short = 't', default_value = "origin", name = "TARGET")]
-    pub remote: String,
+    remote: String,
     /// The revision to publish the atom(s) from
     ///
     /// Specifies a revision using Git's extended SHA-1 syntax.
@@ -45,13 +45,7 @@ pub struct GitArgs {
         verbatim_doc_comment,
         name = "REVSPEC"
     )]
-    pub spec: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AtomId {
-    pub manifest: ObjectId,
-    pub directory: Option<ObjectId>,
+    spec: String,
 }
 
 struct PublishGitContext<'a> {
@@ -61,7 +55,7 @@ struct PublishGitContext<'a> {
     remote: Remote<'a>,
 }
 
-pub async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> anyhow::Result<()> {
+pub(crate) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> anyhow::Result<()> {
     let repo = repo.to_thread_local();
 
     let context = PublishGitContext::new(&repo, args.vcs.git).await?;
@@ -74,15 +68,6 @@ pub async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> anyhow::Resul
     tracing::info!(message = ?atoms);
 
     Ok(())
-}
-
-impl Hash for AtomId {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.manifest.hash(state);
-        if let Some(dir) = &self.directory {
-            dir.hash(state);
-        }
-    }
 }
 
 impl<'a> PublishGitContext<'a> {
