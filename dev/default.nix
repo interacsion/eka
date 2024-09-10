@@ -4,5 +4,5 @@ let
 
 in
 {
-  dev = fromManifest { } ./dev.toml;
+  env = fromManifest { } ./env.toml;
 }

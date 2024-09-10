@@ -1,1 +1,1 @@
-nix/dev/rust-toolchain.toml
+dev/env/rust-toolchain.toml

@@ -1,4 +1,4 @@
-workspace.members = ["manifest", "resolve"]
+workspace.members = ["crates/manifest", "crates/resolve"]
 
 [package]
 edition = "2021"
@@ -8,7 +8,7 @@ version = "0.1.0"
 [dependencies]
 nom = "^7"
 
-manifest.path = "manifest"
+manifest.path = "crates/manifest"
 
 anyhow.workspace             = true
 semver.workspace             = true

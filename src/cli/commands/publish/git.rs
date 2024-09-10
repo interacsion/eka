@@ -13,7 +13,6 @@ use manifest::core::{Atom, Manifest};
 use path_clean::PathClean;
 use std::{
     fs,
-    hash::{Hash, Hasher},
     io::{self, Read},
     path::{Path, PathBuf},
 };

@@ -1,4 +1,4 @@
 let
-  inherit (import ./nix) dev;
+  inherit (import ./dev) env;
 in
-dev.shell
+env.shell
