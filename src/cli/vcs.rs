@@ -9,7 +9,7 @@ use gix::{
 };
 
 #[derive(Error, Debug)]
-pub enum VcsError {
+pub(super) enum VcsError {
     // #[error("No supported repository found in this directory or its parents")]
     // FailedDetection,
     #[error(r#""{0}""#)]
@@ -18,13 +18,13 @@ pub enum VcsError {
 
 #[non_exhaustive]
 #[derive(Clone, Debug)]
-pub enum Vcs {
+pub(super) enum Vcs {
     #[cfg(feature = "git")]
     Git(ThreadSafeRepository),
 }
 
 #[tracing::instrument(err)]
-pub fn detect() -> Result<Vcs, VcsError> {
+pub(super) fn detect() -> Result<Vcs, VcsError> {
     #[cfg(feature = "git")]
     {
         let opts = Options {

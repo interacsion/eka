@@ -28,7 +28,7 @@ enum GitError {
 
 #[derive(Parser)]
 #[command(next_help_heading = "Git Options")]
-pub(crate) struct GitArgs {
+pub(super) struct GitArgs {
     /// The target remote to publish the atom(s) to
     #[arg(long, short = 't', default_value = "origin", name = "TARGET")]
     remote: String,
@@ -54,7 +54,7 @@ struct PublishGitContext<'a> {
     remote: Remote<'a>,
 }
 
-pub(crate) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> anyhow::Result<()> {
+pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> anyhow::Result<()> {
     let repo = repo.to_thread_local();
 
     let context = PublishGitContext::new(&repo, args.vcs.git).await?;

@@ -39,7 +39,7 @@ pub fn init_logger(args: LogArgs) {
         .init();
 }
 
-pub(crate) trait LogValue {
+pub(super) trait LogValue {
     fn as_json(&self) -> String
     where
         Self: Serialize;

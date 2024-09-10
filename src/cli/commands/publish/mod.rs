@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(arg_required_else_help = true)]
-pub(crate) struct PublishArgs {
+pub(in super::super) struct PublishArgs {
     /// Publish all the atoms in and under the current working directory
     #[arg(long, short, conflicts_with = "path")]
     recursive: bool,
@@ -27,7 +27,7 @@ struct VcsArgs {
     git: git::GitArgs,
 }
 
-pub(crate) async fn run(vcs: Vcs, args: PublishArgs) -> anyhow::Result<()> {
+pub(super) async fn run(vcs: Vcs, args: PublishArgs) -> anyhow::Result<()> {
     match vcs {
         #[cfg(feature = "git")]
         Vcs::Git(repo) => {
