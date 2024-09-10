@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while},
@@ -10,6 +7,8 @@ use nom::{
     IResult,
 };
 
+#[cfg(test)]
+mod tests;
 #[cfg(test)]
 use serde::{Deserialize, Serialize};
 

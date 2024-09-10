@@ -1,4 +1,5 @@
 use super::LogArgs;
+
 use serde::Serialize;
 use std::error;
 use std::fmt::Display;

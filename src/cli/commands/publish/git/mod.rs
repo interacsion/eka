@@ -1,24 +1,15 @@
+pub(super) mod error;
+
 mod r#impl;
 
 use super::PublishArgs;
 use crate::cli::logging::LogValue;
 
 use clap::Parser;
+use error::GitError;
 use std::path::PathBuf;
-use thiserror::Error;
 
-use gix::{
-    discover, remote::find::existing, Commit, Reference, Remote, Repository, ThreadSafeRepository,
-    Tree,
-};
-
-#[derive(Error, Debug)]
-enum GitError {
-    #[error(transparent)]
-    Discover(#[from] discover::Error),
-    #[error(transparent)]
-    RemotNotFound(#[from] existing::Error),
-}
+use gix::{Commit, Reference, Remote, Repository, ThreadSafeRepository, Tree};
 
 #[derive(Parser)]
 #[command(next_help_heading = "Git Options")]
@@ -41,30 +32,40 @@ pub(super) struct GitArgs {
     spec: String,
 }
 
+#[derive(Debug)]
 struct PublishGitContext<'a> {
     repo: &'a Repository,
     tree: Tree<'a>,
     commit: Commit<'a>,
-    remote: Remote<'a>,
+    _remote: Remote<'a>,
 }
 
-pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> anyhow::Result<()> {
+pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result<(), GitError> {
     let repo = repo.to_thread_local();
 
-    let context = PublishGitContext::new(&repo, args.vcs.git).await?;
+    let context = PublishGitContext::set(&repo, args.vcs.git).await?;
 
     let atoms: Vec<Reference> = if args.recursive {
         todo!();
     } else {
         context.publish(args.path)
     };
+
+    if atoms.is_empty() {
+        let e = GitError::All;
+        tracing::error!(
+            message = %e,
+        );
+        return Err(e);
+    }
+
     tracing::info!(message = ?atoms);
 
     Ok(())
 }
 
 impl<'a> PublishGitContext<'a> {
-    async fn new(repo: &'a Repository, args: GitArgs) -> anyhow::Result<Self> {
+    async fn set(repo: &'a Repository, args: GitArgs) -> Result<Self, GitError> {
         let GitArgs { remote, spec } = args;
         let remote = async { repo.find_remote(remote.as_str()).log_err() };
 
@@ -76,15 +77,15 @@ impl<'a> PublishGitContext<'a> {
 
         // print both errors before returning one
         let (remote, commit) = tokio::join!(remote, commit);
-        let (remote, commit) = (remote?, commit??);
+        let (_remote, commit) = (remote?, commit??);
 
-        let tree = commit.tree()?;
+        let tree = commit.tree().log_err()?;
 
         Ok(Self {
             repo,
             tree,
             commit,
-            remote,
+            _remote,
         })
     }
 

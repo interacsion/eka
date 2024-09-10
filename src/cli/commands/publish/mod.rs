@@ -5,6 +5,7 @@ use crate::cli::vcs::Vcs;
 
 use clap::Parser;
 use std::path::PathBuf;
+use thiserror::Error;
 
 #[derive(Parser)]
 #[command(arg_required_else_help = true)]
@@ -27,7 +28,7 @@ struct VcsArgs {
     git: git::GitArgs,
 }
 
-pub(super) async fn run(vcs: Vcs, args: PublishArgs) -> anyhow::Result<()> {
+pub(super) async fn run(vcs: Vcs, args: PublishArgs) -> Result<(), PublishError> {
     match vcs {
         #[cfg(feature = "git")]
         Vcs::Git(repo) => {
@@ -35,4 +36,11 @@ pub(super) async fn run(vcs: Vcs, args: PublishArgs) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[derive(Error, Debug)]
+pub(crate) enum PublishError {
+    #[error(transparent)]
+    #[cfg(feature = "git")]
+    Git(#[from] git::error::GitError),
 }

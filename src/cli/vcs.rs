@@ -8,14 +8,6 @@ use gix::{
     ThreadSafeRepository,
 };
 
-#[derive(Error, Debug)]
-pub(super) enum VcsError {
-    // #[error("No supported repository found in this directory or its parents")]
-    // FailedDetection,
-    #[error(r#""{0}""#)]
-    Discover(#[from] gix::discover::Error),
-}
-
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub(super) enum Vcs {
@@ -42,4 +34,12 @@ pub(super) fn detect() -> Result<Vcs, VcsError> {
 
     // TODO: not needed until we have another supported VCS
     // Err(VcsError::FailedDetection)
+}
+
+#[derive(Error, Debug)]
+pub(crate) enum VcsError {
+    // #[error("No supported repository found in this directory or its parents")]
+    // FailedDetection,
+    #[error(r#""{0}""#)]
+    Discover(#[from] gix::discover::Error),
 }

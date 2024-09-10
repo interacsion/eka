@@ -22,6 +22,7 @@ impl<'a> super::PublishGitContext<'a> {
             .tree
             .clone()
             .peel_to_entry_by_path(path)
+            .log_err()
             .ok()
             .flatten()
             .or_else(|| {
@@ -37,6 +38,7 @@ impl<'a> super::PublishGitContext<'a> {
             .tree
             .clone()
             .peel_to_entry_by_path(&no_ext)
+            .log_err()
             .ok()
             .flatten()
             .and_then(|entry| entry.mode().is_tree().then_some(entry));
