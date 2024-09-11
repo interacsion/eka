@@ -35,9 +35,13 @@ pub(super) struct GitArgs {
 #[derive(Debug)]
 // Define a struct to hold the context for publishing atoms
 struct PublishGitContext<'a> {
+    // Reference to the repository we are publish from
     repo: &'a Repository,
+    // The repository tree object for the given commit
     tree: Tree<'a>,
+    // The commit to publish from
     commit: Commit<'a>,
+    // The remote to publish to
     remote: Remote<'a>,
 }
 

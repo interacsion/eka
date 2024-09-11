@@ -12,20 +12,15 @@ use gix::{
 use std::{
     fs,
     io::{self, Read},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 impl<'a> super::PublishGitContext<'a> {
     /// Method to publish an atom
-    pub fn publish_atom(&self, path: &PathBuf) -> Option<()> {
+    pub fn publish_atom(&self, path: &Path) -> Option<()> {
         let no_ext = path.with_extension("");
         let (atom, atom_entry) = self
-            .tree
-            .clone()
-            .peel_to_entry_by_path(path)
-            .log_err()
-            .ok()
-            .flatten()
+            .tree_search(path)
             .or_else(|| {
                 tracing::warn!(
                     message = "Atom does not exist in given history",
@@ -37,12 +32,7 @@ impl<'a> super::PublishGitContext<'a> {
             .and_then(|entry| self.verify_manifest(&entry, path).map(|atom| (atom, entry)))?;
 
         let atom_dir_entry = self
-            .tree
-            .clone()
-            .peel_to_entry_by_path(&no_ext)
-            .log_err()
-            .ok()
-            .flatten()
+            .tree_search(&no_ext)
             .and_then(|entry| entry.mode().is_tree().then_some(entry));
 
         let trees = self.write_atom_trees(&atom_entry, atom_dir_entry)?;
@@ -55,9 +45,8 @@ impl<'a> super::PublishGitContext<'a> {
     }
 
     /// Method to publish an atom relative to the work directory
-    pub fn publish_workdir_atom(&self, rel_repo: &Path, atom_path: &PathBuf) -> Option<()> {
-        // unwrap is safe as we won't enter this block when workdir doesn't exist
-        let abs_repo = fs::canonicalize(rel_repo).unwrap();
+    pub fn publish_workdir_atom(&self, rel_repo: &Path, atom_path: &Path) -> Option<()> {
+        let abs_repo = fs::canonicalize(rel_repo).log_err().ok()?;
         let current = self.repo.current_dir();
         let rel = current
             .join(atom_path)
@@ -71,7 +60,7 @@ impl<'a> super::PublishGitContext<'a> {
             }
             let cleaned = atom_path.clean();
             // Preserve the platform-specific root
-            let p = cleaned.strip_prefix(Path::new("/")).unwrap();
+            let p = cleaned.strip_prefix(Path::new("/")).log_err()?;
             abs_repo
                 .join(p)
                 .clean()
@@ -121,17 +110,13 @@ impl<'a> super::PublishGitContext<'a> {
         let mut entries: Vec<AtomEntry> = Vec::with_capacity(2);
 
         let tree = atom_tree(&mut entries, atom);
-        let id = self.repo.write_object(tree).log_err().ok();
+        let id = self.write_object(tree)?;
 
         Some(AtomId {
-            manifest: id?.object().ok()?.id,
+            manifest: id,
             directory: dir.and_then(|entry| {
                 let tree = atom_tree(&mut entries, &entry);
-                self.repo
-                    .write_object(tree)
-                    .log_err()
-                    .ok()
-                    .and_then(|id| Some(id.object().ok()?.id))
+                self.write_object(tree)
             }),
         })
     }
@@ -145,19 +130,6 @@ impl<'a> super::PublishGitContext<'a> {
             directory,
         }: AtomId,
     ) -> Option<CommittedAtom> {
-        let write = |obj| {
-            Some(
-                self.repo
-                    .write_object(obj)
-                    .log_err()
-                    .ok()?
-                    .object()
-                    .log_err()
-                    .ok()?
-                    .id,
-            )
-        };
-
         let sig = Signature {
             email: EMPTY.into(),
             name: EMPTY.into(),
@@ -179,18 +151,37 @@ impl<'a> super::PublishGitContext<'a> {
                 ("version".into(), FORMAT_VERSION.into()),
             ],
         };
-        let id = write(commit.clone())?;
+        let id = self.write_object(commit.clone())?;
         if let Some(tree) = directory {
             let commit = AtomCommit {
                 tree,
                 parents: vec![id].into(),
                 ..commit
             };
-            let id = write(commit.clone())?;
+            let id = self.write_object(commit.clone())?;
             Some(CommittedAtom { commit, id })
         } else {
             Some(CommittedAtom { commit, id })
         }
+    }
+
+    /// Helper function to write an object to the repository
+    fn write_object(&self, obj: impl gix_object::WriteTo) -> Option<gix::ObjectId> {
+        self.repo
+            .write_object(obj)
+            .log_err()
+            .map(|id| id.detach())
+            .ok()
+    }
+
+    /// Helper function to return an entry by path from the repo tree
+    fn tree_search(&self, path: &Path) -> Option<Entry<'a>> {
+        self.tree
+            .clone()
+            .peel_to_entry_by_path(path)
+            .log_err()
+            .ok()
+            .flatten()
     }
 }
 
@@ -249,7 +240,7 @@ struct AtomReference<'a> {
     source: Option<Reference<'a>>,
 }
 
-/// Function to read a blob from an entry
+/// Helper function to read a blob from an entry
 fn read_blob<F, R>(entry: &Entry, mut f: F) -> Option<R>
 where
     F: FnMut(&mut dyn Read) -> io::Result<R>,
@@ -259,7 +250,7 @@ where
     f(&mut reader).ok()
 }
 
-/// Function to create an atom tree from entries
+/// Helper function to create an atom tree from entries
 fn atom_tree(entries: &mut Vec<AtomEntry>, atom: &Entry) -> AtomTree {
     entries.push(AtomEntry {
         mode: atom.mode(),
