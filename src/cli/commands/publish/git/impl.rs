@@ -6,8 +6,8 @@ use manifest::core::{Atom, Manifest};
 use path_clean::PathClean;
 
 use gix::{
-    diff::object::Commit as AtomCommit, index::extension::Signature, object::tree::Entry,
-    worktree::object::Tree as AtomTree, ObjectId, Reference,
+    diff::object::Commit as AtomCommit, object::tree::Entry, worktree::object::Tree as AtomTree,
+    ObjectId, Reference,
 };
 use std::{
     fs,
