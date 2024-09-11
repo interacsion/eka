@@ -16,7 +16,8 @@ use std::{
 };
 
 impl<'a> super::PublishGitContext<'a> {
-    pub(super) fn publish_atom(&self, path: &PathBuf) -> Option<()> {
+    /// Method to publish an atom
+    pub fn publish_atom(&self, path: &PathBuf) -> Option<()> {
         let no_ext = path.with_extension("");
         let (atom, atom_entry) = self
             .tree
@@ -34,6 +35,7 @@ impl<'a> super::PublishGitContext<'a> {
                 None
             })
             .and_then(|entry| self.verify_manifest(&entry, path).map(|atom| (atom, entry)))?;
+
         let atom_dir_entry = self
             .tree
             .clone()
@@ -52,7 +54,8 @@ impl<'a> super::PublishGitContext<'a> {
             })
     }
 
-    pub(super) fn publish_workdir_atom(&self, rel_repo: &Path, atom_path: &PathBuf) -> Option<()> {
+    /// Method to publish an atom relative to the work directory
+    pub fn publish_workdir_atom(&self, rel_repo: &Path, atom_path: &PathBuf) -> Option<()> {
         // unwrap is safe as we won't enter this block when workdir doesn't exist
         let abs_repo = fs::canonicalize(rel_repo).unwrap();
         let current = self.repo.current_dir();
@@ -87,6 +90,7 @@ impl<'a> super::PublishGitContext<'a> {
         .flatten()
     }
 
+    /// Method to verify the manifest of an entry
     fn verify_manifest(&self, entry: &Entry, path: &Path) -> Option<Atom> {
         if !entry.mode().is_blob() {
             return None;
@@ -112,6 +116,7 @@ impl<'a> super::PublishGitContext<'a> {
             .ok()
     }
 
+    /// Method to write atom tree
     fn write_atom_trees(&self, atom: &Entry, dir: Option<Entry>) -> Option<AtomId> {
         let mut entries: Vec<AtomEntry> = Vec::with_capacity(2);
 
@@ -131,6 +136,7 @@ impl<'a> super::PublishGitContext<'a> {
         })
     }
 
+    /// Method to write atom commits
     fn write_atom_commits(
         &self,
         atom: &Atom,
@@ -188,23 +194,18 @@ impl<'a> super::PublishGitContext<'a> {
     }
 }
 
-const FORMAT_VERSION: &str = "1";
-const EMPTY: &str = "";
-const SOURCE: &str = "source";
-const MANIFEST: &str = "manifest";
-
-/// An Atom that has been successfully written to the local git repo
+/// Struct to hold the result of writing atom commits
 #[derive(Debug, Clone)]
 struct CommittedAtom {
     commit: AtomCommit,
     id: ObjectId,
 }
 
-use gix::Repository;
 impl CommittedAtom {
+    /// Method to write references for the committed atom
     fn write_refs<'a>(
         &'a self,
-        repo: &'a Repository,
+        repo: &'a gix::Repository,
         atom: &Atom,
         ref_path: &Path,
     ) -> Option<AtomReference> {
@@ -235,19 +236,20 @@ impl CommittedAtom {
     }
 }
 
-/// The unique identity of an Atom given by the Git object ID of the
-/// tree(s) of its contents
+/// Struct to hold the unique identity of an atom given by the Git object ID of the tree(s) of its contents
 struct AtomId {
     manifest: ObjectId,
     directory: Option<ObjectId>,
 }
 
+/// Struct to hold references for an atom
 #[derive(Debug)]
 struct AtomReference<'a> {
     manifest: Reference<'a>,
     source: Option<Reference<'a>>,
 }
 
+/// Function to read a blob from an entry
 fn read_blob<F, R>(entry: &Entry, mut f: F) -> Option<R>
 where
     F: FnMut(&mut dyn Read) -> io::Result<R>,
@@ -257,6 +259,7 @@ where
     f(&mut reader).ok()
 }
 
+/// Function to create an atom tree from entries
 fn atom_tree(entries: &mut Vec<AtomEntry>, atom: &Entry) -> AtomTree {
     entries.push(AtomEntry {
         mode: atom.mode(),
@@ -268,3 +271,8 @@ fn atom_tree(entries: &mut Vec<AtomEntry>, atom: &Entry) -> AtomTree {
         entries: entries.clone(),
     }
 }
+
+const FORMAT_VERSION: &str = "1";
+const EMPTY: &str = "";
+const SOURCE: &str = "source";
+const MANIFEST: &str = "manifest";

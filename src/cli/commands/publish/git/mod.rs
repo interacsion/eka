@@ -33,6 +33,7 @@ pub(super) struct GitArgs {
 }
 
 #[derive(Debug)]
+// Define a struct to hold the context for publishing atoms
 struct PublishGitContext<'a> {
     repo: &'a Repository,
     tree: Tree<'a>,
