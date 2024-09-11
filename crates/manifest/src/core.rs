@@ -20,6 +20,7 @@ pub struct Atom {
 }
 
 impl Manifest {
+    /// Is the given toml content a valid Atom manifest
     pub fn is(content: &str) -> anyhow::Result<Atom> {
         let doc = content.parse::<DocumentMut>()?;
 

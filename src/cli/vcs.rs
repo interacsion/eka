@@ -32,14 +32,14 @@ pub(super) fn detect() -> Result<Vcs, VcsError> {
         return Ok(Vcs::Git(repo));
     }
 
-    // TODO: not needed until we have another supported VCS
-    // Err(VcsError::FailedDetection)
+    Err(VcsError::FailedDetection)
 }
 
 #[derive(Error, Debug)]
 pub(crate) enum VcsError {
-    // #[error("No supported repository found in this directory or its parents")]
-    // FailedDetection,
+    #[error("No supported repository found in this directory or its parents")]
+    FailedDetection,
+    #[cfg(feature = "git")]
     #[error(r#""{0}""#)]
     Discover(#[from] gix::discover::Error),
 }

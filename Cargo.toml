@@ -6,7 +6,8 @@ name    = "eka"
 version = "0.1.0"
 
 [dependencies]
-nom = "^7"
+nom        = "^7"
+path-clean = "^1"
 
 manifest.path = "crates/manifest"
 
@@ -23,11 +24,10 @@ url.workspace                = true
 
 clap       = { version = "^4", features = ["derive"] }
 gix        = { workspace = true, optional = true }
-gix-actor  = "^0.32"
-gix-date   = "^0.9"
-gix-object = "^0.44"
-gix-ref    = "^0.47"
-path-clean = "^1"
+gix-actor  = { version = "^0.32", optional = true }
+gix-date   = { version = "^0.9", optional = true }
+gix-object = { version = "^0.44", optional = true }
+gix-ref    = { version = "^0.47", optional = true }
 
 [dev-dependencies]
 insta.workspace = true
@@ -50,4 +50,4 @@ url                = { version = "^2", features = ["serde"] }
 
 [features]
 default = ["git"]
-git     = ["gix"]
+git     = ["gix", "gix-actor", "gix-date", "gix-object", "gix-ref"]
