@@ -6,8 +6,8 @@ use manifest::core::{Atom, Manifest};
 use path_clean::PathClean;
 
 use gix::{
-    diff::object::Commit as AtomCommit, object::tree::Entry, worktree::object::Tree as AtomTree,
-    ObjectId, Reference,
+    diff::object::Commit as AtomCommit, index::extension::Signature, object::tree::Entry,
+    worktree::object::Tree as AtomTree, ObjectId, Reference,
 };
 use std::{
     fs,
@@ -16,7 +16,7 @@ use std::{
 };
 
 impl<'a> super::PublishGitContext<'a> {
-    pub(super) fn publish_atom(&self, path: &PathBuf) -> Option<Reference> {
+    pub(super) fn publish_atom(&self, path: &PathBuf) -> Option<()> {
         let no_ext = path.with_extension("");
         let (atom, atom_entry) = self
             .tree
@@ -42,30 +42,17 @@ impl<'a> super::PublishGitContext<'a> {
             .ok()
             .flatten()
             .and_then(|entry| entry.mode().is_tree().then_some(entry));
-        let tree = self
-            .write_atom_tree(&atom_entry, atom_dir_entry)?
-            .object()
-            .ok()?
-            .id;
 
-        let id = self.write_atom_commit(&atom, tree)?;
-        use gix_ref::transaction::PreviousValue;
-        self.repo
-            .reference(
-                format!("refs/atom/{}-{}", no_ext.display(), atom.version),
-                id,
-                PreviousValue::MustNotExist,
-                format!("publish: {}: {}", atom.id, atom.version),
-            )
-            .log_err()
-            .ok()
+        let trees = self.write_atom_trees(&atom_entry, atom_dir_entry)?;
+
+        self.write_atom_commits(&atom, trees)?
+            .write_refs(self.repo, &atom, &no_ext)
+            .map(|r| {
+                tracing::trace!(message = "Atom published", refs = ?r);
+            })
     }
 
-    pub(super) fn publish_workdir_atom(
-        &self,
-        rel_repo: &Path,
-        atom_path: &PathBuf,
-    ) -> Option<Reference> {
+    pub(super) fn publish_workdir_atom(&self, rel_repo: &Path, atom_path: &PathBuf) -> Option<()> {
         // unwrap is safe as we won't enter this block when workdir doesn't exist
         let abs_repo = fs::canonicalize(rel_repo).unwrap();
         let current = self.repo.current_dir();
@@ -125,28 +112,49 @@ impl<'a> super::PublishGitContext<'a> {
             .ok()
     }
 
-    fn write_atom_tree(&self, atom: &Entry, dir: Option<Entry>) -> Option<gix::Id> {
+    fn write_atom_trees(&self, atom: &Entry, dir: Option<Entry>) -> Option<AtomId> {
         let mut entries: Vec<AtomEntry> = Vec::with_capacity(2);
-        entries.push(AtomEntry {
-            mode: atom.mode(),
-            filename: atom.filename().into(),
-            oid: atom.object_id(),
-        });
-        if let Some(entry) = dir {
-            entries.push(AtomEntry {
-                mode: entry.mode(),
-                filename: entry.filename().into(),
-                oid: entry.object_id(),
-            });
-        }
-        let tree: AtomTree = AtomTree { entries };
-        self.repo.write_object(tree).log_err().ok()
+
+        let tree = atom_tree(&mut entries, atom);
+        let id = self.repo.write_object(tree).log_err().ok();
+
+        Some(AtomId {
+            manifest: id?.object().ok()?.id,
+            directory: dir.and_then(|entry| {
+                let tree = atom_tree(&mut entries, &entry);
+                self.repo
+                    .write_object(tree)
+                    .log_err()
+                    .ok()
+                    .and_then(|id| Some(id.object().ok()?.id))
+            }),
+        })
     }
 
-    fn write_atom_commit(&self, atom: &Atom, tree: ObjectId) -> Option<gix::Id> {
+    fn write_atom_commits(
+        &self,
+        atom: &Atom,
+        AtomId {
+            manifest,
+            directory,
+        }: AtomId,
+    ) -> Option<CommittedAtom> {
+        let write = |obj| {
+            Some(
+                self.repo
+                    .write_object(obj)
+                    .log_err()
+                    .ok()?
+                    .object()
+                    .log_err()
+                    .ok()?
+                    .id,
+            )
+        };
+
         let sig = Signature {
-            email: "".into(),
-            name: "".into(),
+            email: EMPTY.into(),
+            name: EMPTY.into(),
             time: gix_date::Time {
                 seconds: 0,
                 offset: 0,
@@ -154,16 +162,90 @@ impl<'a> super::PublishGitContext<'a> {
             },
         };
         let commit = AtomCommit {
-            tree,
+            tree: manifest,
             parents: Vec::new().into(),
             author: sig.clone(),
             committer: sig,
             encoding: None,
             message: format!("{}: {}", atom.id, atom.version).into(),
-            extra_headers: vec![("commit".into(), self.commit.id().as_bytes().into())],
+            extra_headers: vec![
+                ("origin".into(), self.commit.id().as_bytes().into()),
+                ("version".into(), FORMAT_VERSION.into()),
+            ],
         };
-        self.repo.write_object(commit).log_err().ok()
+        let id = write(commit.clone())?;
+        if let Some(tree) = directory {
+            let commit = AtomCommit {
+                tree,
+                parents: vec![id].into(),
+                ..commit
+            };
+            let id = write(commit.clone())?;
+            Some(CommittedAtom { commit, id })
+        } else {
+            Some(CommittedAtom { commit, id })
+        }
     }
+}
+
+const FORMAT_VERSION: &str = "1";
+const EMPTY: &str = "";
+const SOURCE: &str = "source";
+const MANIFEST: &str = "manifest";
+
+/// An Atom that has been successfully written to the local git repo
+#[derive(Debug, Clone)]
+struct CommittedAtom {
+    commit: AtomCommit,
+    id: ObjectId,
+}
+
+use gix::Repository;
+impl CommittedAtom {
+    fn write_refs<'a>(
+        &'a self,
+        repo: &'a Repository,
+        atom: &Atom,
+        ref_path: &Path,
+    ) -> Option<AtomReference> {
+        let Self { commit, id } = self;
+        use gix_ref::transaction::PreviousValue;
+        let write = |kind, id| {
+            repo.reference(
+                format!("refs/atom/{}-{}/{}", ref_path.display(), atom.version, kind),
+                id,
+                PreviousValue::MustNotExist,
+                format!("publish: {}: {}-{}", atom.id, atom.version, kind),
+            )
+            .log_err()
+            .ok()
+        };
+
+        Some(if let Some(manifest) = commit.parents.first() {
+            AtomReference {
+                manifest: write(MANIFEST, *manifest)?,
+                source: write(SOURCE, *id),
+            }
+        } else {
+            AtomReference {
+                manifest: write(MANIFEST, *id)?,
+                source: None,
+            }
+        })
+    }
+}
+
+/// The unique identity of an Atom given by the Git object ID of the
+/// tree(s) of its contents
+struct AtomId {
+    manifest: ObjectId,
+    directory: Option<ObjectId>,
+}
+
+#[derive(Debug)]
+struct AtomReference<'a> {
+    manifest: Reference<'a>,
+    source: Option<Reference<'a>>,
 }
 
 fn read_blob<F, R>(entry: &Entry, mut f: F) -> Option<R>
@@ -173,4 +255,16 @@ where
     let object = entry.object().ok()?;
     let mut reader = object.data.as_slice();
     f(&mut reader).ok()
+}
+
+fn atom_tree(entries: &mut Vec<AtomEntry>, atom: &Entry) -> AtomTree {
+    entries.push(AtomEntry {
+        mode: atom.mode(),
+        filename: atom.filename().into(),
+        oid: atom.object_id(),
+    });
+
+    AtomTree {
+        entries: entries.clone(),
+    }
 }

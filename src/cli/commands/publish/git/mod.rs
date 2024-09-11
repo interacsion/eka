@@ -9,7 +9,7 @@ use clap::Parser;
 use error::GitError;
 use std::path::PathBuf;
 
-use gix::{Commit, Reference, Remote, Repository, ThreadSafeRepository, Tree};
+use gix::{Commit, Remote, Repository, ThreadSafeRepository, Tree};
 
 #[derive(Parser)]
 #[command(next_help_heading = "Git Options")]
@@ -37,7 +37,7 @@ struct PublishGitContext<'a> {
     repo: &'a Repository,
     tree: Tree<'a>,
     commit: Commit<'a>,
-    _remote: Remote<'a>,
+    remote: Remote<'a>,
 }
 
 pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result<(), GitError> {
@@ -45,7 +45,7 @@ pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result
 
     let context = PublishGitContext::set(&repo, args.vcs.git).await?;
 
-    let atoms: Vec<Reference> = if args.recursive {
+    let atoms: Vec<()> = if args.recursive {
         todo!();
     } else {
         context.publish(args.path)
@@ -59,7 +59,9 @@ pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result
         return Err(e);
     }
 
-    tracing::info!(message = ?atoms);
+    // let client_req = context.remote.connect(Direction::Push);
+    // let mut _client = client_req?;
+    // tracing::info!(message = %_client.transport_mut().connection_persists_across_multiple_requests());
 
     Ok(())
 }
@@ -77,7 +79,7 @@ impl<'a> PublishGitContext<'a> {
 
         // print both errors before returning one
         let (remote, commit) = tokio::join!(remote, commit);
-        let (_remote, commit) = (remote?, commit??);
+        let (remote, commit) = (remote?, commit??);
 
         let tree = commit.tree().log_err()?;
 
@@ -85,11 +87,11 @@ impl<'a> PublishGitContext<'a> {
             repo,
             tree,
             commit,
-            _remote,
+            remote,
         })
     }
 
-    fn publish<C>(&self, paths: C) -> Vec<Reference>
+    fn publish<C>(&self, paths: C) -> Vec<()>
     where
         C: IntoIterator<Item = PathBuf>,
     {

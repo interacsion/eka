@@ -11,6 +11,8 @@ pub(crate) enum GitError {
     Commit(#[from] object::find::existing::with_conversion::Error),
     #[error(transparent)]
     Tree(#[from] object::commit::Error),
+    // #[error(transparent)]
+    // Connect(#[from] gix::remote::connect::Error),
     #[error("Failed to published any specified atoms")]
     All,
 }
