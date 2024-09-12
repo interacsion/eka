@@ -94,14 +94,14 @@ impl<'a> PublishGitContext<'a> {
 
         let tree = commit.tree().log_err()?;
 
-        let publish_tasks = RefCell::new(JoinSet::new());
+        let push_tasks = RefCell::new(JoinSet::new());
 
         Ok(Self {
             repo,
             tree,
             commit,
             remote,
-            push_tasks: publish_tasks,
+            push_tasks,
         })
     }
 
@@ -124,7 +124,7 @@ impl<'a> PublishGitContext<'a> {
                         |rel_repo| self.publish_workdir_atom(rel_repo, atom_path),
                     )
                     .or_else(|| {
-                        tracing::warn!(message = "Failed to publish a request", path = %path.display());
+                        tracing::warn!(message = "Failed to publish", path = %path.display());
                         None
                     })
             })

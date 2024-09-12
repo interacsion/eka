@@ -93,12 +93,17 @@ impl<'a> super::PublishGitContext<'a> {
 
         Manifest::is(&content)
             .map_err(|e| {
+                let commit = self
+                    .commit
+                    .short_id()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|_| self.commit.id().to_string());
+
                 tracing::warn!(
                     message = "Ignoring invalid atom manifest",
                     path = %path.display(),
-                    commit = %self.commit.id(),
-                    oid = %entry.oid(),
-                    error = %format!("'{}'", e)
+                    commit = %commit,
+                    error = %format!("{}", e)
                 );
                 e
             })
@@ -360,14 +365,16 @@ fn atom_tree(entries: &mut Vec<AtomEntry>, atom: &Entry) -> AtomTree {
         oid: atom.object_id(),
     });
 
+    // git expects tree entries to be sorted
+    entries.sort_unstable();
+
     AtomTree {
         entries: entries.clone(),
     }
 }
 
-use std::process::Command;
-
 fn run_git_command(args: &[&str]) -> io::Result<Vec<u8>> {
+    use std::process::Command;
     let output = Command::new("git").args(args).output()?;
 
     if output.status.success() {
