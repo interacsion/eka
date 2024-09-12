@@ -26,7 +26,7 @@ clap       = { version = "^4", features = ["derive"] }
 gix-actor  = { version = "^0.32", optional = true }
 gix-date   = { version = "^0.9", optional = true }
 gix-object = { version = "^0.44", optional = true }
-gix-ref = { version = "^0.47", optional = true }
+gix-ref    = { version = "^0.47", optional = true }
 
 gix = { workspace = true, optional = true }
 

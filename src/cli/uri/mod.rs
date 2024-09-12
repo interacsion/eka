@@ -38,11 +38,11 @@ use serde::{Deserialize, Serialize};
 /// let uri_str = "https://work:our-repo//path/to/atom@1.0.0";
 /// let uri_ref: Ref = uri_str.into();
 ///
-/// assert_eq!(uri_ref.scheme, Some("https"));
-/// assert_eq!(uri_ref.alias, Some("work"));
-/// assert_eq!(uri_ref.frag, Some("our-repo"));
-/// assert_eq!(uri_ref.atom, Some("path/to/atom"));
-/// assert_eq!(uri_ref.version, Some("1.0.0"));
+/// assert_eq!(uri_ref.scheme(), Some("https"));
+/// assert_eq!(uri_ref.alias(), Some("work"));
+/// assert_eq!(uri_ref.frag(), Some("our-repo"));
+/// assert_eq!(uri_ref.atom(), Some("path/to/atom"));
+/// assert_eq!(uri_ref.version(), Some("1.0.0"));
 /// ```
 ///
 /// Parsing a URI with just an alias and atom path:
@@ -52,11 +52,11 @@ use serde::{Deserialize, Serialize};
 /// let uri_str = "work:our-repo//path/to/atom";
 /// let uri_ref: Ref = uri_str.into();
 ///
-/// assert_eq!(uri_ref.scheme, None);
-/// assert_eq!(uri_ref.alias, Some("work"));
-/// assert_eq!(uri_ref.frag, Some("our-repo"));
-/// assert_eq!(uri_ref.atom, Some("path/to/atom"));
-/// assert_eq!(uri_ref.version, None);
+/// assert_eq!(uri_ref.scheme(), None);
+/// assert_eq!(uri_ref.alias(), Some("work"));
+/// assert_eq!(uri_ref.frag(), Some("our-repo"));
+/// assert_eq!(uri_ref.atom(), Some("path/to/atom"));
+/// assert_eq!(uri_ref.version(), None);
 /// ```
 ///
 /// Parsing a minimal URI (only atom path):
@@ -66,11 +66,11 @@ use serde::{Deserialize, Serialize};
 /// let uri_str = "path/to/atom";
 /// let uri_ref: Ref = uri_str.into();
 ///
-/// assert_eq!(uri_ref.scheme, None);
-/// assert_eq!(uri_ref.alias, None);
-/// assert_eq!(uri_ref.frag, None);
-/// assert_eq!(uri_ref.atom, Some("path/to/atom"));
-/// assert_eq!(uri_ref.version, None);
+/// assert_eq!(uri_ref.scheme(), None);
+/// assert_eq!(uri_ref.alias(), None);
+/// assert_eq!(uri_ref.frag(), None);
+/// assert_eq!(uri_ref.atom(), Some("path/to/atom"));
+/// assert_eq!(uri_ref.version(), None);
 /// ```
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Serialize, Deserialize))]
@@ -85,6 +85,24 @@ pub struct Ref<'a> {
     atom: Option<&'a str>,
     /// The version of the atom, if specified.
     version: Option<&'a str>,
+}
+
+impl<'a> Ref<'a> {
+    pub fn scheme(&self) -> Option<&'a str> {
+        self.scheme
+    }
+    pub fn alias(&self) -> Option<&'a str> {
+        self.alias
+    }
+    pub fn frag(&self) -> Option<&'a str> {
+        self.frag
+    }
+    pub fn atom(&self) -> Option<&'a str> {
+        self.atom
+    }
+    pub fn version(&self) -> Option<&'a str> {
+        self.version
+    }
 }
 
 impl<'a> From<&'a str> for Ref<'a> {
