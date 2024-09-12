@@ -3,15 +3,17 @@ pub(super) mod error;
 mod r#impl;
 
 use super::PublishArgs;
-use crate::cli::logging::LogValue;
+use crate::cli::logging::{self, LogValue};
 
 use clap::Parser;
 use error::GitError;
+use std::cell::RefCell;
 use std::path::PathBuf;
+use tokio::{sync::Mutex, task::JoinSet};
 
 use gix::{Commit, Remote, Repository, ThreadSafeRepository, Tree};
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(next_help_heading = "Git Options")]
 pub(super) struct GitArgs {
     /// The target remote to publish the atom(s) to
@@ -33,16 +35,18 @@ pub(super) struct GitArgs {
 }
 
 #[derive(Debug)]
-// Define a struct to hold the context for publishing atoms
+/// Holds the shared context needed for publishing atoms
 struct PublishGitContext<'a> {
-    // Reference to the repository we are publish from
+    /// Reference to the repository we are publish from
     repo: &'a Repository,
-    // The repository tree object for the given commit
+    /// The repository tree object for the given commit
     tree: Tree<'a>,
-    // The commit to publish from
+    /// The commit to publish from
     commit: Commit<'a>,
-    // The remote to publish to
+    /// The remote to publish to
     remote: Remote<'a>,
+    /// a JoinSet of push tasks to avoid blocking on them
+    push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
 }
 
 pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result<(), GitError> {
@@ -57,23 +61,25 @@ pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result
     };
 
     if atoms.is_empty() {
-        let e = GitError::All;
-        tracing::error!(
-            message = %e,
-        );
-        return Err(e);
+        return Err(logging::log_error(GitError::All));
     }
 
-    // let client_req = context.remote.connect(Direction::Push);
-    // let mut _client = client_req?;
-    // tracing::info!(message = %_client.transport_mut().connection_persists_across_multiple_requests());
+    let mut errors = Vec::new();
+    context.await_pushes(&mut errors).await;
 
-    Ok(())
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(logging::log_error(GitError::Pushes))
+    }
 }
 
 impl<'a> PublishGitContext<'a> {
     async fn set(repo: &'a Repository, args: GitArgs) -> Result<Self, GitError> {
-        let GitArgs { remote, spec } = args;
+        let GitArgs {
+            ref remote,
+            ref spec,
+        } = args;
         let remote = async { repo.find_remote(remote.as_str()).log_err() };
 
         let commit = async {
@@ -88,11 +94,14 @@ impl<'a> PublishGitContext<'a> {
 
         let tree = commit.tree().log_err()?;
 
+        let publish_tasks = RefCell::new(JoinSet::new());
+
         Ok(Self {
             repo,
             tree,
             commit,
             remote,
+            push_tasks: publish_tasks,
         })
     }
 
@@ -104,15 +113,41 @@ impl<'a> PublishGitContext<'a> {
             .into_iter()
             .filter_map(|path| {
                 let atom_path = if matches!(path.extension(), Some(ext) if ext == "atom") {
-                    path
+                    &path
                 } else {
-                    path.with_extension("atom")
+                    &path.with_extension("atom")
                 };
-                self.repo.work_dir().map_or_else(
-                    || self.publish_atom(&atom_path),
-                    |rel_repo| self.publish_workdir_atom(rel_repo, &atom_path),
-                )
+                self.repo
+                    .work_dir()
+                    .map_or_else(
+                        || self.publish_atom(atom_path),
+                        |rel_repo| self.publish_workdir_atom(rel_repo, atom_path),
+                    )
+                    .or_else(|| {
+                        tracing::warn!(message = "Failed to publish a request", path = %path.display());
+                        None
+                    })
             })
             .collect()
+    }
+
+    async fn await_pushes(&self, errors: &mut Vec<GitError>) {
+        let tasks = Mutex::new(self.push_tasks.borrow_mut());
+
+        while let Some(task) = tasks.lock().await.join_next().await {
+            match task {
+                Ok(Ok(output)) => {
+                    if !output.is_empty() {
+                        tracing::info!(output = %String::from_utf8_lossy(&output));
+                    }
+                }
+                Ok(Err(e)) => {
+                    errors.push(logging::log_error(e));
+                }
+                Err(e) => {
+                    errors.push(logging::log_error(GitError::Join(e)));
+                }
+            }
+        }
     }
 }

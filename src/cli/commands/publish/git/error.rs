@@ -11,8 +11,12 @@ pub(crate) enum GitError {
     Commit(#[from] object::find::existing::with_conversion::Error),
     #[error(transparent)]
     Tree(#[from] object::commit::Error),
-    // #[error(transparent)]
-    // Connect(#[from] gix::remote::connect::Error),
-    #[error("Failed to published any specified atoms")]
+    #[error(transparent)]
+    Push(#[from] std::io::Error),
+    #[error(transparent)]
+    Join(#[from] tokio::task::JoinError),
+    #[error("Failed to sync some atoms to the remote")]
+    Pushes,
+    #[error("Failed to published any of the specified atoms")]
     All,
 }

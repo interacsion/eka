@@ -15,6 +15,8 @@ use std::{
     path::Path,
 };
 
+use super::PublishGitContext;
+
 impl<'a> super::PublishGitContext<'a> {
     /// Method to publish an atom
     pub fn publish_atom(&self, path: &Path) -> Option<()> {
@@ -38,10 +40,8 @@ impl<'a> super::PublishGitContext<'a> {
         let trees = self.write_atom_trees(&atom_entry, atom_dir_entry)?;
 
         self.write_atom_commits(&atom, trees)?
-            .write_refs(self.repo, &atom, &no_ext)
-            .map(|r| {
-                tracing::trace!(message = "Atom published", refs = ?r);
-            })
+            .write_refs(self.repo, &atom, &no_ext)?
+            .push(self)
     }
 
     /// Method to publish an atom relative to the work directory
@@ -204,7 +204,12 @@ impl CommittedAtom {
         use gix_ref::transaction::PreviousValue;
         let write = |kind, id| {
             repo.reference(
-                format!("refs/atom/{}-{}/{}", ref_path.display(), atom.version, kind),
+                format!(
+                    "refs/atoms/{}/{}/{}",
+                    ref_path.display(),
+                    atom.version,
+                    kind
+                ),
                 id,
                 PreviousValue::MustNotExist,
                 format!("publish: {}: {}-{}", atom.id, atom.version, kind),
@@ -235,9 +240,106 @@ struct AtomId {
 
 /// Struct to hold references for an atom
 #[derive(Debug)]
-struct AtomReference<'a> {
+pub(super) struct AtomReference<'a> {
     manifest: Reference<'a>,
     source: Option<Reference<'a>>,
+}
+
+impl<'a> AtomReference<'a> {
+    /// Publish atom's to the specified git remote
+    ///
+    /// Currently the implementation just calls the `git` binary.
+    /// Once `gix` is further along we can use it directly.
+    fn push(&'a self, context: &'a PublishGitContext) -> Option<()> {
+        let remote = context.remote.name()?.as_symbol()?.to_owned();
+        let manifest_ref = self.manifest.name().as_bstr().to_string();
+        let source_ref = self.source.as_ref().map(|r| r.name().as_bstr().to_string());
+        let mut tasks = context.push_tasks.borrow_mut();
+
+        if let Some(r) = source_ref {
+            let remote = remote.clone();
+            let task = async move {
+                let result = run_git_command(&["push", &remote, format!("{}:{}", r, r).as_str()])?;
+
+                Ok(result)
+            };
+            tasks.spawn(task);
+        }
+
+        let task = async move {
+            let result = run_git_command(&[
+                "push",
+                &remote,
+                format!("{}:{}", manifest_ref, manifest_ref).as_str(),
+            ])?;
+            Ok(result)
+        };
+        tasks.spawn(task);
+
+        // TODO: figure out what is broken here for native pushing, or wait for upstream support
+        //
+        // use gix::diff::object::Data;
+        // use gix::index::hash::Kind as HashKind;
+        // use gix::remote::Direction;
+        // use gix::worktree::object::Kind;
+        // use gix_pack::data::output::{
+        //     bytes::FromEntriesIter, count::PackLocation, Count, Entry as PackEntry,
+        // };
+        // use gix_pack::data::Version;
+        // use gix_transport::{
+        //     client::{MessageKind, WriteMode},
+        //     Service,
+        // };
+        // use std::io::Cursor;
+
+        // let id = if let Some(r) = self.source.clone() {
+        //     r.clone().peel_to_id_in_place()
+        // } else {
+        //     self.manifest.peel_to_id_in_place()
+        // }
+        // .log_err()?
+        // .detach();
+
+        // let c = Count {
+        //     id,
+        //     entry_pack_location: PackLocation::NotLookedUp,
+        // };
+
+        // let d = Data::new(Kind::Commit, id.deref().as_bytes());
+        // let entry = PackEntry::from_data(&c, &d).map(|x| vec![x]);
+
+        // // 1. Create the pack file
+        // let entries_iter = std::iter::once(entry);
+        // let mut output = Cursor::new(Vec::new());
+        // FromEntriesIter::new(
+        //     entries_iter,
+        //     &mut output,
+        //     5, // number of entries (just one commit)
+        //     Version::V2,
+        //     HashKind::Sha1,
+        // )
+        // .next()
+        // .and_then(|x| x.log_err().ok());
+        // let pack_data = output.into_inner();
+
+        // let mut client_req = context.remote.connect(Direction::Push).log_err()?;
+        // let url = context.remote.url(Direction::Push);
+        // if let Some(url) = url {
+        //     let creds = client_req.configured_credentials(url.clone());
+        //     if let Ok(creds) = creds {
+        //         client_req = client_req.with_credentials(creds);
+        //     }
+        // };
+        // let client = client_req.transport_mut();
+        // client.handshake(Service::ReceivePack, &[]).log_err()?;
+        // let mut writer = client
+        //     .request(WriteMode::Binary, MessageKind::Flush, false)
+        //     .log_err()?;
+        // writer.write_all(&pack_data).log_err()?;
+        // writer.flush().log_err()?;
+
+        Some(())
+    }
 }
 
 /// Helper function to read a blob from an entry
@@ -263,6 +365,20 @@ fn atom_tree(entries: &mut Vec<AtomEntry>, atom: &Entry) -> AtomTree {
     }
 }
 
+use std::process::Command;
+
+fn run_git_command(args: &[&str]) -> io::Result<Vec<u8>> {
+    let output = Command::new("git").args(args).output()?;
+
+    if output.status.success() {
+        Ok(output.stdout)
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            String::from_utf8_lossy(&output.stderr),
+        ))
+    }
+}
 const FORMAT_VERSION: &str = "1";
 const EMPTY: &str = "";
 const SOURCE: &str = "source";
