@@ -2,8 +2,21 @@ use super::Name;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use thiserror::Error;
 use toml_edit::de;
 use toml_edit::DocumentMut;
+
+#[derive(Error, Debug)]
+pub enum AtomError {
+    #[error("Manifest is missing the `[atom]` key")]
+    Missing,
+    #[error(transparent)]
+    InvalidAtom(#[from] de::Error),
+    #[error(transparent)]
+    InvalidToml(#[from] toml_edit::TomlError),
+}
+
+type AtomResult<T> = Result<T, AtomError>;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Manifest {
@@ -20,16 +33,15 @@ pub struct Atom {
 }
 
 impl Manifest {
-    /// Is the given toml content a valid Atom manifest
-    pub fn is(content: &str) -> anyhow::Result<Atom> {
+    /// Get the Atom object from a toml manifest
+    pub fn get_atom(content: &str) -> AtomResult<Atom> {
         let doc = content.parse::<DocumentMut>()?;
 
         if let Some(v) = doc.get("atom").map(|v| v.to_string()) {
             let atom = de::from_str::<Atom>(&v)?;
             Ok(atom)
         } else {
-            // TODO: make a proper error type
-            Err(anyhow::format_err!("Manifest is missing the `[atom]` key"))
+            Err(AtomError::Missing)
         }
     }
 }

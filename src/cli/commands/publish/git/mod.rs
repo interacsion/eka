@@ -61,7 +61,7 @@ pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result
     };
 
     if atoms.is_empty() {
-        return Err(logging::log_error(GitError::All));
+        return Err(logging::log_error(GitError::AllFailed));
     }
 
     let mut errors = Vec::new();
@@ -70,7 +70,7 @@ pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result
     if errors.is_empty() {
         Ok(())
     } else {
-        Err(logging::log_error(GitError::Pushes))
+        Err(logging::log_error(GitError::SomePushFailed))
     }
 }
 
@@ -124,7 +124,7 @@ impl<'a> PublishGitContext<'a> {
                         |rel_repo| self.publish_workdir_atom(rel_repo, atom_path),
                     )
                     .or_else(|| {
-                        tracing::warn!(message = "Failed to publish", path = %path.display());
+                        tracing::warn!(message = "Skipping atom", path = %path.display());
                         None
                     })
             })
@@ -145,7 +145,7 @@ impl<'a> PublishGitContext<'a> {
                     errors.push(logging::log_error(e));
                 }
                 Err(e) => {
-                    errors.push(logging::log_error(GitError::Join(e)));
+                    errors.push(logging::log_error(GitError::JoinFailed(e)));
                 }
             }
         }

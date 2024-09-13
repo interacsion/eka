@@ -1,3 +1,4 @@
+use super::PublishGitContext;
 use crate::cli::logging::LogValue;
 
 use gix_actor::Signature;
@@ -15,32 +16,18 @@ use std::{
     path::Path,
 };
 
-use super::PublishGitContext;
-
-impl<'a> super::PublishGitContext<'a> {
+impl<'a> PublishGitContext<'a> {
     /// Method to publish an atom
     pub fn publish_atom(&self, path: &Path) -> Option<()> {
-        let no_ext = path.with_extension("");
-        let (atom, atom_entry) = self
-            .tree_search(path)
-            .or_else(|| {
-                tracing::warn!(
-                    message = "Atom does not exist in given history",
-                    path = %path.display(),
-                    commit = %self.commit.id(),
-                );
-                None
-            })
-            .and_then(|entry| self.verify_manifest(&entry, path).map(|atom| (atom, entry)))?;
+        let dir = path.with_extension("");
+        let FoundAtom(atom, atom_entry) = self.find_and_verify_atom(path)?;
 
-        let atom_dir_entry = self
-            .tree_search(&no_ext)
-            .and_then(|entry| entry.mode().is_tree().then_some(entry));
+        let atom_dir_entry = self.maybe_dir(&dir);
 
-        let trees = self.write_atom_trees(&atom_entry, atom_dir_entry)?;
+        let trees = self.write_atom_trees(&atom_entry, atom_dir_entry, &dir, &atom)?;
 
         self.write_atom_commits(&atom, trees)?
-            .write_refs(self.repo, &atom, &no_ext)?
+            .write_refs(self.repo, &atom, &dir)?
             .push(self)
     }
 
@@ -91,39 +78,90 @@ impl<'a> super::PublishGitContext<'a> {
             Ok(content)
         })?;
 
-        Manifest::is(&content)
+        Manifest::get_atom(&content)
             .map_err(|e| {
-                let commit = self
-                    .commit
-                    .short_id()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|_| self.commit.id().to_string());
-
                 tracing::warn!(
                     message = "Ignoring invalid atom manifest",
                     path = %path.display(),
-                    commit = %commit,
-                    error = %format!("{}", e)
+                    commit = %self.commit.id(),
+                    error = %e
                 );
-                e
             })
             .ok()
     }
 
+    /// Compute the ObjectId of the given object without writing it to the repo
+    fn compute_hash(&self, obj: &dyn gix_object::WriteTo) -> Option<ObjectId> {
+        use std::io::Cursor;
+
+        let mut buf = Vec::new();
+        let mut cursor = Cursor::new(&mut buf);
+
+        obj.write_to(&mut cursor).log_err().ok()?;
+
+        let oid = gix_object::compute_hash(self.repo.object_hash(), obj.kind(), buf.as_slice());
+
+        Some(oid)
+    }
+
     /// Method to write atom tree
-    fn write_atom_trees(&self, atom: &Entry, dir: Option<Entry>) -> Option<AtomId> {
+    fn write_atom_trees(
+        &self,
+        atom_entry: &Entry,
+        dir: Option<Entry>,
+        ref_path: &Path,
+        atom: &Atom,
+    ) -> Option<AtomId> {
         let mut entries: Vec<AtomEntry> = Vec::with_capacity(2);
 
-        let tree = atom_tree(&mut entries, atom);
-        let id = self.write_object(tree)?;
+        let refs = |kind| {
+            format!(
+                "atoms/{}/{}/{}",
+                ref_path.to_string_lossy(),
+                atom.version,
+                kind
+            )
+        };
 
-        Some(AtomId {
-            manifest: id,
-            directory: dir.and_then(|entry| {
-                let tree = atom_tree(&mut entries, &entry);
-                self.write_object(tree)
-            }),
-        })
+        let manifest_ref = refs("manifest");
+        let source_ref = refs("source");
+
+        let skip = || {
+            tracing::warn!(path = %ref_path.display(), "Skipping already existing atom");
+            None
+        };
+
+        let manifest_tree = atom_tree(&mut entries, atom_entry);
+
+        let manifest_exists = self
+            .repo
+            .find_tree(self.compute_hash(&manifest_tree)?)
+            .is_ok()
+            && self.repo.find_reference(&manifest_ref).is_ok();
+
+        if dir.is_none() && manifest_exists {
+            return skip();
+        }
+
+        if let Some(entry) = dir {
+            let dir_tree = atom_tree(&mut entries, &entry);
+            if self.repo.find_tree(self.compute_hash(&dir_tree)?).is_ok()
+                && self.repo.find_reference(&source_ref).is_ok()
+                && manifest_exists
+            {
+                return skip();
+            }
+            let manifest = self.write_object(manifest_tree)?;
+            let source = Some(self.write_object(dir_tree)?);
+            AtomId { manifest, source }
+        } else {
+            let manifest = self.write_object(manifest_tree)?;
+            AtomId {
+                manifest,
+                source: None,
+            }
+        }
+        .into()
     }
 
     /// Method to write atom commits
@@ -132,7 +170,7 @@ impl<'a> super::PublishGitContext<'a> {
         atom: &Atom,
         AtomId {
             manifest,
-            directory,
+            source: directory,
         }: AtomId,
     ) -> Option<CommittedAtom> {
         let sig = Signature {
@@ -188,7 +226,33 @@ impl<'a> super::PublishGitContext<'a> {
             .ok()
             .flatten()
     }
+
+    fn find_and_verify_atom(&self, path: &Path) -> Option<FoundAtom> {
+        let entry = match self.tree_search(path) {
+            Some(entry) => entry,
+            _ => {
+                tracing::warn!(
+                    path = %path.display(),
+                    commit = %self.commit.id(),
+                    "Atom does not exist in the given history; skipping..."
+                );
+                return None;
+            }
+        };
+
+        self.verify_manifest(&entry, path)
+            .map(|atom| FoundAtom(atom, entry))
+    }
+
+    fn maybe_dir(&self, path: &Path) -> Option<Entry> {
+        match self.tree_search(path) {
+            Some(entry) => entry.mode().is_tree().then_some(entry),
+            _ => None,
+        }
+    }
 }
+
+struct FoundAtom<'a>(Atom, Entry<'a>);
 
 /// Struct to hold the result of writing atom commits
 #[derive(Debug, Clone)]
@@ -240,7 +304,7 @@ impl CommittedAtom {
 /// Struct to hold the unique identity of an atom given by the Git object ID of the tree(s) of its contents
 struct AtomId {
     manifest: ObjectId,
-    directory: Option<ObjectId>,
+    source: Option<ObjectId>,
 }
 
 /// Struct to hold references for an atom
@@ -366,7 +430,9 @@ fn atom_tree(entries: &mut Vec<AtomEntry>, atom: &Entry) -> AtomTree {
     });
 
     // git expects tree entries to be sorted
-    entries.sort_unstable();
+    if entries.len() > 1 {
+        entries.sort_unstable();
+    }
 
     AtomTree {
         entries: entries.clone(),
