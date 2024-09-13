@@ -8,7 +8,7 @@ use crate::cli::logging::{self, LogValue};
 use clap::Parser;
 use error::GitError;
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::{sync::Mutex, task::JoinSet};
 
 use gix::{Commit, Remote, Repository, ThreadSafeRepository, Tree};
@@ -34,21 +34,6 @@ pub(super) struct GitArgs {
     spec: String,
 }
 
-#[derive(Debug)]
-/// Holds the shared context needed for publishing atoms
-struct PublishGitContext<'a> {
-    /// Reference to the repository we are publish from
-    repo: &'a Repository,
-    /// The repository tree object for the given commit
-    tree: Tree<'a>,
-    /// The commit to publish from
-    commit: Commit<'a>,
-    /// The remote to publish to
-    remote: Remote<'a>,
-    /// a JoinSet of push tasks to avoid blocking on them
-    push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
-}
-
 pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result<(), GitError> {
     let repo = repo.to_thread_local();
 
@@ -72,6 +57,49 @@ pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result
     } else {
         Err(logging::log_error(GitError::SomePushFailed))
     }
+}
+
+trait ExtendRepo {
+    /// Normalizes a given path to be relative to the repository root.
+    ///
+    /// This function takes a path (relative or absolute) and attempts to normalize it
+    /// relative to the repository root, based on the current working directory within
+    /// the repository's file system.
+    ///
+    /// # Behavior:
+    /// - For relative paths (e.g., "foo/bar" or "../foo"):
+    ///   - Interpreted as relative to the current working directory within the repository.
+    ///   - Computed relative to the repository root.
+    ///
+    /// - For absolute paths (e.g., "/foo/bar"):
+    ///   - Treated as if the repository root is the filesystem root.
+    ///   - The leading slash is ignored, and the path is considered relative to the repo root.
+    ///
+    /// # Arguments
+    /// * `path` - A `&Path` representing the path to normalize.
+    ///
+    /// # Returns
+    /// * `Some(Ok(PathBuf))` - A normalized path relative to the repository root.
+    /// * `Some(Err(()))` - A special case to allow the caller to short-circuit if the resulting path escapes the repo root
+    /// * `None` - If normalization fails. This can occur in scenarios such as:
+    ///   - The function is called in a bare repository where the concept of a working directory doesn't apply.
+    ///   - The current working directory is outside the repository.
+    fn normalize(&self, path: &Path) -> Option<Result<PathBuf, ()>>;
+}
+
+#[derive(Debug)]
+/// Holds the shared context needed for publishing atoms
+struct PublishGitContext<'a> {
+    /// Reference to the repository we are publish from
+    repo: &'a Repository,
+    /// The repository tree object for the given commit
+    tree: Tree<'a>,
+    /// The commit to publish from
+    commit: Commit<'a>,
+    /// The remote to publish to
+    remote: Remote<'a>,
+    /// a JoinSet of push tasks to avoid blocking on them
+    push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
 }
 
 impl<'a> PublishGitContext<'a> {
@@ -105,6 +133,40 @@ impl<'a> PublishGitContext<'a> {
         })
     }
 
+    /// Publishes atoms, attempting to normalize the given path(s) relative to the caller's location within the repository.
+    ///
+    /// This function processes a collection of paths, each representing an atom to be published. The publishing
+    /// process includes path normalization, existence checks, and actual publishing attempts.
+    ///
+    /// # Path Normalization
+    /// - First attempts to interpret each path as relative to the caller's current location inside the repository.
+    /// - If normalization fails (e.g., in a bare repository), falls back to treating the path as already relative to the repo root.
+    /// - The normalized path is used to search the Git history, not the file system.
+    ///
+    /// # Publishing Process
+    /// For each path:
+    /// 1. Normalizes the path (as described above).
+    /// 2. Checks if the atom already exists in the repository.
+    ///    - If it exists, the atom is skipped, and a log message is generated.
+    /// 3. Attempts to publish the atom.
+    ///    - If successful, the atom is added to the repository.
+    ///    - If any error occurs during publishing, the atom is skipped, and an error is logged.
+    ///
+    /// # Error Handling
+    /// - The function aims to process all provided paths, even if some fail.
+    /// - Errors and skipped atoms are reported via logs but do not halt the overall process.
+    /// - The function continues to the next atom after logging any errors or skip conditions.
+    ///
+    /// # Return Value
+    /// Returns a vector of unit types (`Vec<()>`), primarily to indicate the number of paths processed.
+    /// The caller should check the logs for detailed information on the success or failure of each atom.
+    ///
+    /// # Parameters
+    /// - `paths`: A collection `C` of paths, each representing an atom to be published.
+    ///
+    /// # Note
+    /// This function prioritizes completing the publishing attempt for all provided paths over
+    /// stopping at the first error. Check the logs for a comprehensive report of the publishing process.
     fn publish<C>(&self, paths: C) -> Vec<()>
     where
         C: IntoIterator<Item = PathBuf>,
@@ -112,21 +174,15 @@ impl<'a> PublishGitContext<'a> {
         paths
             .into_iter()
             .filter_map(|path| {
-                let atom_path = if matches!(path.extension(), Some(ext) if ext == "atom") {
-                    &path
-                } else {
-                    &path.with_extension("atom")
+                let path = match self.repo.normalize(&path.with_extension("atom")) {
+                    Some(Ok(path)) => path,
+                    None => path,
+                    Some(Err(_)) => return None,
                 };
-                self.repo
-                    .work_dir()
-                    .map_or_else(
-                        || self.publish_atom(atom_path),
-                        |rel_repo| self.publish_workdir_atom(rel_repo, atom_path),
-                    )
-                    .or_else(|| {
-                        tracing::warn!(message = "Skipping atom", path = %path.display());
-                        None
-                    })
+                self.publish_atom(&path).or_else(|| {
+                    tracing::warn!(message = "Skipping atom", path = %path.display());
+                    None
+                })
             })
             .collect()
     }
@@ -149,5 +205,43 @@ impl<'a> PublishGitContext<'a> {
                 }
             }
         }
+    }
+}
+
+impl ExtendRepo for Repository {
+    fn normalize(&self, path: &Path) -> Option<Result<PathBuf, ()>> {
+        use path_clean::PathClean;
+        use std::fs;
+
+        let rel_repo_root = self.work_dir()?;
+        let repo_root = fs::canonicalize(rel_repo_root).log_err().ok()?;
+        let current = self.current_dir();
+        let rel = current
+            .join(path)
+            .clean()
+            .strip_prefix(&repo_root)
+            .map(Path::to_path_buf);
+
+        rel.or_else(|e| {
+            // handle absolute paths as if they were relative to the repo root
+            if !path.is_absolute() {
+                return Err(e);
+            }
+            let cleaned = path.clean();
+            // Preserve the platform-specific root
+            let p = cleaned.strip_prefix(Path::new("/")).log_err()?;
+            repo_root
+                .join(p)
+                .clean()
+                .strip_prefix(&repo_root)
+                .map(ToOwned::to_owned)
+        })
+        .map_err(|_| {
+            tracing::warn!(
+                message = "Ignoring path outside repo root",
+                path = %path.display(),
+            );
+        })
+        .into()
     }
 }
