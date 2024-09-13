@@ -8,6 +8,7 @@ use crate::cli::logging::{self, LogValue};
 use clap::Parser;
 use error::GitError;
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tokio::{sync::Mutex, task::JoinSet};
 
@@ -42,7 +43,9 @@ pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result
     let atoms: Vec<()> = if args.recursive {
         todo!();
     } else {
-        context.publish(args.path)
+        // filter redundant paths
+        let paths: HashSet<PathBuf> = args.path.into_iter().collect();
+        context.publish(paths)
     };
 
     if atoms.is_empty() {
