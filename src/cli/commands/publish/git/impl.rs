@@ -1,12 +1,14 @@
 use super::PublishGitContext;
 use crate::cli::logging::LogValue;
 
-use gix_actor::Signature;
-use gix_object::tree::Entry as AtomEntry;
 use manifest::core::{Atom, Manifest};
 
 use gix::{
-    diff::object::Commit as AtomCommit, object::tree::Entry, worktree::object::Tree as AtomTree,
+    actor::Signature,
+    diff::object::Commit as AtomCommit,
+    object::tree::Entry,
+    objs::{tree::Entry as AtomEntry, WriteTo},
+    worktree::object::Tree as AtomTree,
     ObjectId, Reference,
 };
 use std::{
@@ -65,7 +67,8 @@ impl<'a> PublishGitContext<'a> {
     }
 
     /// Compute the ObjectId of the given object without writing it to the repo
-    fn compute_hash(&self, obj: &dyn gix_object::WriteTo) -> Option<ObjectId> {
+    fn compute_hash(&self, obj: &dyn WriteTo) -> Option<ObjectId> {
+        use gix::objs;
         use std::io::Cursor;
 
         let mut buf = Vec::new();
@@ -73,13 +76,13 @@ impl<'a> PublishGitContext<'a> {
 
         obj.write_to(&mut cursor).log_err().ok()?;
 
-        let oid = gix_object::compute_hash(self.repo.object_hash(), obj.kind(), buf.as_slice());
+        let oid = objs::compute_hash(self.repo.object_hash(), obj.kind(), buf.as_slice());
 
         Some(oid)
     }
 
     /// Helper function to write an object to the repository
-    fn write_object(&self, obj: impl gix_object::WriteTo) -> Option<gix::ObjectId> {
+    fn write_object(&self, obj: impl WriteTo) -> Option<gix::ObjectId> {
         self.repo
             .write_object(obj)
             .log_err()
@@ -203,10 +206,10 @@ impl<'a> AtomContext<'a> {
         let sig = Signature {
             email: EMPTY.into(),
             name: EMPTY.into(),
-            time: gix_date::Time {
+            time: gix::date::Time {
                 seconds: 0,
                 offset: 0,
-                sign: gix_date::time::Sign::Plus,
+                sign: gix::date::time::Sign::Plus,
             },
         };
         let commit = AtomCommit {
@@ -253,7 +256,7 @@ impl CommittedAtom {
         id: ObjectId,
         kind: TreeKind,
     ) -> Option<gix::Reference> {
-        use gix_ref::transaction::PreviousValue;
+        use gix::refs::transaction::PreviousValue;
 
         let r = match kind {
             TreeKind::Manifest => &context.manifest,
