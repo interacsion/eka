@@ -14,18 +14,29 @@ use std::{
     path::Path,
 };
 
+struct AtomContext<'a> {
+    atom: &'a Atom,
+    path: &'a Path,
+    context: &'a PublishGitContext<'a>,
+    manifest: String,
+    source: String,
+}
+
 impl<'a> PublishGitContext<'a> {
     /// Method to publish an atom
     pub fn publish_atom(&self, path: &Path) -> Option<()> {
         let dir = path.with_extension("");
         let FoundAtom(atom, atom_entry) = self.find_and_verify_atom(path)?;
 
-        let atom_dir_entry = self.maybe_dir(&dir);
+        let context = AtomContext::set(&atom, &dir, self);
 
-        let trees = self.write_atom_trees(&atom_entry, atom_dir_entry, &dir, &atom)?;
+        let atom_dir_entry = context.maybe_dir();
 
-        self.write_atom_commits(&atom, trees)?
-            .write_refs(self.repo, &atom, &dir)?
+        let trees = context.write_atom_trees(&atom_entry, atom_dir_entry)?;
+
+        context
+            .write_atom_commits(trees)?
+            .write_refs(&context)?
             .push(self)
     }
 
@@ -67,110 +78,6 @@ impl<'a> PublishGitContext<'a> {
         Some(oid)
     }
 
-    /// Method to write atom tree
-    fn write_atom_trees(
-        &self,
-        atom_entry: &Entry,
-        dir: Option<Entry>,
-        ref_path: &Path,
-        atom: &Atom,
-    ) -> Option<AtomId> {
-        let mut entries: Vec<AtomEntry> = Vec::with_capacity(2);
-
-        let refs = |kind| {
-            format!(
-                "atoms/{}/{}/{}",
-                ref_path.to_string_lossy(),
-                atom.version,
-                kind
-            )
-        };
-
-        let manifest_ref = refs("manifest");
-        let source_ref = refs("source");
-
-        let skip = || {
-            tracing::info!(path = %ref_path.display(), "Atom already exists");
-            None
-        };
-
-        let manifest_tree = atom_tree(&mut entries, atom_entry);
-
-        let manifest_exists = self
-            .repo
-            .find_tree(self.compute_hash(&manifest_tree)?)
-            .is_ok()
-            && self.repo.find_reference(&manifest_ref).is_ok();
-
-        if dir.is_none() && manifest_exists {
-            return skip();
-        }
-
-        if let Some(entry) = dir {
-            let dir_tree = atom_tree(&mut entries, &entry);
-            if self.repo.find_tree(self.compute_hash(&dir_tree)?).is_ok()
-                && self.repo.find_reference(&source_ref).is_ok()
-                && manifest_exists
-            {
-                return skip();
-            }
-            let manifest = self.write_object(manifest_tree)?;
-            let source = Some(self.write_object(dir_tree)?);
-            AtomId { manifest, source }
-        } else {
-            let manifest = self.write_object(manifest_tree)?;
-            AtomId {
-                manifest,
-                source: None,
-            }
-        }
-        .into()
-    }
-
-    /// Method to write atom commits
-    fn write_atom_commits(
-        &self,
-        atom: &Atom,
-        AtomId {
-            manifest,
-            source: directory,
-        }: AtomId,
-    ) -> Option<CommittedAtom> {
-        let sig = Signature {
-            email: EMPTY.into(),
-            name: EMPTY.into(),
-            time: gix_date::Time {
-                seconds: 0,
-                offset: 0,
-                sign: gix_date::time::Sign::Plus,
-            },
-        };
-        let commit = AtomCommit {
-            tree: manifest,
-            parents: Vec::new().into(),
-            author: sig.clone(),
-            committer: sig,
-            encoding: None,
-            message: format!("{}: {}", atom.id, atom.version).into(),
-            extra_headers: vec![
-                ("origin".into(), self.commit.id().as_bytes().into()),
-                ("version".into(), FORMAT_VERSION.into()),
-            ],
-        };
-        let id = self.write_object(commit.clone())?;
-        if let Some(tree) = directory {
-            let commit = AtomCommit {
-                tree,
-                parents: vec![id].into(),
-                ..commit
-            };
-            let id = self.write_object(commit.clone())?;
-            Some(CommittedAtom { commit, id })
-        } else {
-            Some(CommittedAtom { commit, id })
-        }
-    }
-
     /// Helper function to write an object to the repository
     fn write_object(&self, obj: impl gix_object::WriteTo) -> Option<gix::ObjectId> {
         self.repo
@@ -206,11 +113,125 @@ impl<'a> PublishGitContext<'a> {
         self.verify_manifest(&entry, path)
             .map(|atom| FoundAtom(atom, entry))
     }
+}
 
-    fn maybe_dir(&self, path: &Path) -> Option<Entry> {
-        match self.tree_search(path) {
+enum TreeKind {
+    Manifest,
+    Source,
+}
+
+use std::fmt;
+
+impl fmt::Display for TreeKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TreeKind::Manifest => write!(f, "{}", MANIFEST),
+            TreeKind::Source => write!(f, "{}", SOURCE),
+        }
+    }
+}
+
+impl<'a> AtomContext<'a> {
+    fn set(atom: &'a Atom, path: &'a Path, context: &'a PublishGitContext) -> Self {
+        let prefix = format!("atoms/{}/{}", path.to_string_lossy(), atom.version);
+        Self {
+            atom,
+            path,
+            context,
+            manifest: format!("{}/{}", prefix, TreeKind::Manifest),
+            source: format!("{}/{}", prefix, TreeKind::Source),
+        }
+    }
+
+    fn maybe_dir(&self) -> Option<Entry> {
+        match self.context.tree_search(self.path) {
             Some(entry) => entry.mode().is_tree().then_some(entry),
             _ => None,
+        }
+    }
+
+    fn ref_exists(&self, tree: &AtomTree, kind: TreeKind) -> bool {
+        let r = match kind {
+            TreeKind::Manifest => &self.manifest,
+            TreeKind::Source => &self.source,
+        };
+        let id = self.context.compute_hash(tree);
+        if let Some(id) = id {
+            self.context.repo.find_tree(id).is_ok() && self.context.repo.find_reference(r).is_ok()
+        } else {
+            false
+        }
+    }
+
+    /// Method to write the atom tree object
+    fn write_atom_trees(&self, atom: &Entry, dir: Option<Entry>) -> Option<AtomId> {
+        let mut entries: Vec<AtomEntry> = Vec::with_capacity(2);
+
+        let skip = || {
+            tracing::info!(path = %self.path.display(), "Atom already exists");
+            None
+        };
+
+        let manifest_tree = atom_tree(&mut entries, atom);
+
+        let manifest_exists = self.ref_exists(&manifest_tree, TreeKind::Manifest);
+
+        if dir.is_none() && manifest_exists {
+            return skip();
+        }
+
+        if let Some(entry) = dir {
+            let dir_tree = atom_tree(&mut entries, &entry);
+            if self.ref_exists(&dir_tree, TreeKind::Source) && manifest_exists {
+                return skip();
+            }
+            let manifest = self.context.write_object(manifest_tree)?;
+            let source = Some(self.context.write_object(dir_tree)?);
+            AtomId { manifest, source }
+        } else {
+            let manifest = self.context.write_object(manifest_tree)?;
+            AtomId {
+                manifest,
+                source: None,
+            }
+        }
+        .into()
+    }
+
+    /// Method to write atom commits
+    fn write_atom_commits(&self, AtomId { manifest, source }: AtomId) -> Option<CommittedAtom> {
+        let sig = Signature {
+            email: EMPTY.into(),
+            name: EMPTY.into(),
+            time: gix_date::Time {
+                seconds: 0,
+                offset: 0,
+                sign: gix_date::time::Sign::Plus,
+            },
+        };
+        let commit = AtomCommit {
+            tree: manifest,
+            parents: Vec::new().into(),
+            author: sig.clone(),
+            committer: sig,
+            encoding: None,
+            message: format!("{}: {}", self.atom.id, self.atom.version).into(),
+            extra_headers: vec![
+                ("origin".into(), self.context.commit.id().as_bytes().into()),
+                ("version".into(), FORMAT_VERSION.into()),
+            ],
+        };
+        let id = self.context.write_object(commit.clone())?;
+        if let Some(tree) = source {
+            let commit = AtomCommit {
+                tree,
+                parents: vec![id].into(),
+                ..commit
+            };
+            let id = self.context.write_object(commit.clone())?;
+            Some(CommittedAtom { commit, id })
+        } else {
+            Some(CommittedAtom { commit, id })
         }
     }
 }
@@ -225,39 +246,46 @@ struct CommittedAtom {
 }
 
 impl CommittedAtom {
-    /// Method to write references for the committed atom
-    fn write_refs<'a>(
+    /// Method to write a single reference to the repository
+    fn write_ref<'a>(
         &'a self,
-        repo: &'a gix::Repository,
-        atom: &Atom,
-        ref_path: &Path,
-    ) -> Option<AtomReference> {
-        let Self { commit, id } = self;
+        context: &'a AtomContext,
+        id: ObjectId,
+        kind: TreeKind,
+    ) -> Option<gix::Reference> {
         use gix_ref::transaction::PreviousValue;
-        let write = |kind, id| {
-            repo.reference(
-                format!(
-                    "refs/atoms/{}/{}/{}",
-                    ref_path.display(),
-                    atom.version,
-                    kind
-                ),
+
+        let r = match kind {
+            TreeKind::Manifest => &context.manifest,
+            TreeKind::Source => &context.source,
+        };
+        context
+            .context
+            .repo
+            .reference(
+                format!("refs/{}", r.to_owned()),
                 id,
                 PreviousValue::MustNotExist,
-                format!("publish: {}: {}-{}", atom.id, atom.version, kind),
+                format!(
+                    "publish: {}: {}-{}",
+                    context.atom.id, context.atom.version, kind
+                ),
             )
             .log_err()
             .ok()
-        };
+    }
+    /// Method to write references for the committed atom
+    fn write_refs<'a>(&'a self, context: &'a AtomContext) -> Option<AtomReference> {
+        let Self { commit, id } = self;
 
         Some(if let Some(manifest) = commit.parents.first() {
             AtomReference {
-                manifest: write(MANIFEST, *manifest)?,
-                source: write(SOURCE, *id),
+                manifest: self.write_ref(context, *manifest, TreeKind::Manifest)?,
+                source: self.write_ref(context, *id, TreeKind::Source),
             }
         } else {
             AtomReference {
-                manifest: write(MANIFEST, *id)?,
+                manifest: self.write_ref(context, *id, TreeKind::Manifest)?,
                 source: None,
             }
         })
