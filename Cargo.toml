@@ -5,6 +5,12 @@ edition = "2021"
 name    = "eka"
 version = "0.1.0"
 
+[profile.release]
+codegen-units = 1
+lto           = true
+opt-level     = 3
+strip         = true
+
 [dependencies]
 nom        = "^7"
 path-clean = "^1"
@@ -22,7 +28,7 @@ tracing-error.workspace      = true
 tracing-subscriber.workspace = true
 url.workspace                = true
 
-clap       = { version = "^4", features = ["derive"] }
+clap = { version = "^4", features = ["derive"] }
 
 gix = { workspace = true, optional = true }
 
@@ -48,7 +54,7 @@ gix = { version = "^0.66", default-features = false, features = [
   "max-performance-safe",
   "tracing",
   "blob-diff",
-  "revision"
+  "revision",
 ] }
 
 [features]

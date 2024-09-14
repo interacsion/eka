@@ -13,7 +13,7 @@ options  = []
 [formatter.taplo]
 command  = "taplo"
 excludes = []
-includes = ["*.toml"]
+includes = ["*.toml", ".cargo/config.toml"]
 options  = ["fmt", "-o", "align_entries=true", "-o", "reorder_keys=true"]
 
 [formatter.prettier]
