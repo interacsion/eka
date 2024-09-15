@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name    = "atom"
+version = "0.1.0"
+
+[dependencies]
+nom             = "^7"
+serde.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

@@ -1,5 +1,3 @@
-pub mod uri;
-
 mod commands;
 mod logging;
 mod vcs;

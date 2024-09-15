@@ -14,5 +14,6 @@ pkgs.mkShell.override { stdenv = pkgs.clangStdenv; } {
     toolchain
     mold
     cargo-insta
+    cargo-shear
   ];
 }

@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Parsing a full URI with an alias:
 /// ```
-/// use eka::cli::uri::Ref;
+/// use atom::uri::Ref;
 ///
 /// let uri_str = "https://work:our-repo//path/to/atom@1.0.0";
 /// let uri_ref: Ref = uri_str.into();
@@ -47,7 +47,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Parsing a URI with just an alias and atom path:
 /// ```
-/// use eka::cli::uri::Ref;
+/// use atom::uri::Ref;
 ///
 /// let uri_str = "work:our-repo//path/to/atom";
 /// let uri_ref: Ref = uri_str.into();
@@ -61,7 +61,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Parsing a minimal URI (only atom path):
 /// ```
-/// use eka::cli::uri::Ref;
+/// use atom::uri::Ref;
 ///
 /// let uri_str = "path/to/atom";
 /// let uri_ref: Ref = uri_str.into();

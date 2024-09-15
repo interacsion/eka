@@ -12,13 +12,11 @@ opt-level     = 3
 strip         = true
 
 [dependencies]
-nom        = "^7"
 path-clean = "^1"
 
 manifest.path = "crates/manifest"
 
 anyhow.workspace             = true
-semver.workspace             = true
 serde.workspace              = true
 serde_json.workspace         = true
 thiserror.workspace          = true
@@ -26,14 +24,10 @@ tokio.workspace              = true
 tracing.workspace            = true
 tracing-error.workspace      = true
 tracing-subscriber.workspace = true
-url.workspace                = true
 
 clap = { version = "^4", features = ["derive"] }
 
 gix = { workspace = true, optional = true }
-
-[dev-dependencies]
-insta.workspace = true
 
 [workspace.dependencies]
 anyhow        = "^1"
