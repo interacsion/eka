@@ -1,6 +1,6 @@
 mod commands;
 mod logging;
-mod vcs;
+mod store;
 
 pub use commands::run;
 pub use logging::init_logger;

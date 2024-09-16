@@ -1,7 +1,7 @@
 #[cfg(feature = "git")]
 mod git;
 
-use crate::cli::vcs::Vcs;
+use crate::cli::store::Store;
 
 use clap::Parser;
 use std::path::PathBuf;
@@ -18,20 +18,20 @@ pub(in super::super) struct PublishArgs {
     #[arg(required_unless_present = "recursive")]
     path: Vec<PathBuf>,
     #[command(flatten)]
-    vcs: VcsArgs,
+    store: StoreArgs,
 }
 
 #[derive(Parser)]
-struct VcsArgs {
+struct StoreArgs {
     #[command(flatten)]
     #[cfg(feature = "git")]
     git: git::GitArgs,
 }
 
-pub(super) async fn run(vcs: Vcs, args: PublishArgs) -> Result<(), PublishError> {
-    match vcs {
+pub(super) async fn run(store: Store, args: PublishArgs) -> Result<(), PublishError> {
+    match store {
         #[cfg(feature = "git")]
-        Vcs::Git(repo) => {
+        Store::Git(repo) => {
             git::run(repo, args).await?;
         }
     }

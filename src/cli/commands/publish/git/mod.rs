@@ -38,7 +38,7 @@ pub(super) struct GitArgs {
 pub(super) async fn run(repo: ThreadSafeRepository, args: PublishArgs) -> Result<(), GitError> {
     let repo = repo.to_thread_local();
 
-    let context = PublishGitContext::set(&repo, args.vcs.git).await?;
+    let context = PublishGitContext::set(&repo, args.store.git).await?;
 
     let atoms: Vec<()> = if args.recursive {
         todo!();

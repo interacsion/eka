@@ -10,13 +10,13 @@ use gix::{
 
 #[non_exhaustive]
 #[derive(Clone, Debug)]
-pub(super) enum Vcs {
+pub(super) enum Store {
     #[cfg(feature = "git")]
     Git(ThreadSafeRepository),
 }
 
 #[tracing::instrument(err)]
-pub(super) fn detect() -> Result<Vcs, VcsError> {
+pub(super) fn detect() -> Result<Store, StoreError> {
     #[cfg(feature = "git")]
     {
         let opts = Options {
@@ -29,17 +29,18 @@ pub(super) fn detect() -> Result<Vcs, VcsError> {
             git_dir = %repo.path().as_json(),
             work_dir = %repo.work_dir().as_json()
         );
-        return Ok(Vcs::Git(repo));
+        return Ok(Store::Git(repo));
     }
 
-    Err(VcsError::FailedDetection)
+    #[cfg_attr(feature = "git", allow(unreachable_code))]
+    Err(StoreError::FailedDetection)
 }
 
 #[derive(Error, Debug)]
-pub(crate) enum VcsError {
+pub(crate) enum StoreError {
     #[error("No supported repository found in this directory or its parents")]
     FailedDetection,
     #[cfg(feature = "git")]
-    #[error(r#""{0}""#)]
+    #[error(transparent)]
     Discover(#[from] gix::discover::Error),
 }

@@ -1,23 +1,22 @@
 mod publish;
 
 use super::Args;
-use crate::cli::vcs;
+use crate::cli::store;
 
 use clap::Subcommand;
 
 #[derive(Subcommand)]
 pub(super) enum Commands {
-    /// Package and publish atoms directly within the project's VCS repository.
+    /// Package and publish atoms to the atom store.
     ///
-    /// This command implements a novel, decentralized publishing strategy:
-    /// - Atoms are packaged into isolated VCS structures
-    /// - Custom VCS references are created for efficient, path-based versioning
+    /// This command efficiently packages and publishes atoms using Git:
     ///
-    /// The specific implementation varies by supported VCS:
-    /// - Git: Uses orphan branches and custom refs for isolation and versioning
+    /// - Creates isolated structures (orphan branches) for each atom
+    /// - Uses custom Git refs for versioning and rapid, path-based fetching
+    /// - Enables decentralized publishing while minimizing data transfer
     ///
-    /// This approach leverages existing VCS infrastructure for a self-contained,
-    /// decentralized, and efficient atom registry system.
+    /// The atom store concept is designed to be extensible, allowing for
+    /// future support of alternative storage backends as well.
     #[command(verbatim_doc_comment)]
     Publish(publish::PublishArgs),
 }
@@ -25,8 +24,8 @@ pub(super) enum Commands {
 pub async fn run(args: Args) -> anyhow::Result<()> {
     match args.command {
         Commands::Publish(args) => {
-            let vcs = vcs::detect()?;
-            publish::run(vcs, args).await?
+            let store = store::detect()?;
+            publish::run(store, args).await?
         }
     }
     Ok(())
