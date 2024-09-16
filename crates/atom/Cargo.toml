@@ -4,8 +4,17 @@ name    = "atom"
 version = "0.1.0"
 
 [dependencies]
-nom             = "^7"
-serde.workspace = true
+nom               = "^7"
+unic-ucd-category = "^0.9"
+
+semver.workspace    = true
+thiserror.workspace = true
+
+serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 insta.workspace = true
+
+[features]
+default = []
+serde   = ["dep:serde"]

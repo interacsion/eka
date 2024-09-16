@@ -1,4 +1,4 @@
-workspace.members = ["crates/manifest", "crates/resolve"]
+workspace.members = ["crates/atom", "crates/manifest", "crates/resolve"]
 
 [package]
 edition = "2021"
@@ -25,9 +25,9 @@ tracing.workspace            = true
 tracing-error.workspace      = true
 tracing-subscriber.workspace = true
 
+atom = { path = "crates/atom", features = ["serde"] }
 clap = { version = "^4", features = ["derive"] }
-
-gix = { workspace = true, optional = true }
+gix  = { workspace = true, optional = true }
 
 [workspace.dependencies]
 anyhow        = "^1"

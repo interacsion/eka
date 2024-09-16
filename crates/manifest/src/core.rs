@@ -1,5 +1,4 @@
-use super::Name;
-use semver::Version;
+use atom::{Atom, Id};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;
@@ -20,16 +19,8 @@ type AtomResult<T> = Result<T, AtomError>;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Manifest {
-    r#trait: Name,
+    r#trait: Id,
     pub atom: Atom,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Atom {
-    pub id: Name,
-    pub version: Version,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
 }
 
 impl Manifest {

@@ -113,6 +113,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "atom"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "nom",
+ "semver",
+ "serde",
+ "thiserror",
+ "unic-ucd-category",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -275,6 +287,7 @@ name = "eka"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atom",
  "clap",
  "gix",
  "manifest",
@@ -1203,12 +1216,12 @@ name = "manifest"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atom",
  "insta",
  "semver",
  "serde",
  "thiserror",
  "toml_edit",
- "unic-ucd-category",
  "url",
 ]
 
@@ -1243,6 +1256,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "minimal-lexical"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1261,6 +1280,16 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "nom"
+version = "7.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
+dependencies = [
+ "memchr",
+ "minimal-lexical",
 ]
 
 [[package]]

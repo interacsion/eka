@@ -1,7 +1,8 @@
 use super::PublishGitContext;
 use crate::cli::logging::LogValue;
 
-use manifest::core::{Atom, Manifest};
+use atom::Atom;
+use manifest::core::Manifest;
 
 use gix::{
     actor::Signature,
