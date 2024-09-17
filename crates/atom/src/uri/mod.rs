@@ -1,12 +1,3 @@
-use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_until, take_while},
-    character::complete::digit1,
-    combinator::{map, not, opt, peek, recognize, verify},
-    sequence::tuple,
-    IResult,
-};
-
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -15,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Represents the parsed components of an atom reference URI.
 ///
 /// This struct is an intermediate representation resulting from parsing a URI string
-/// in the format: `[scheme://][alias:[url-fragment//]]atom-path[@version]`
+/// in the format: `[scheme://][alias:[url-fragment::]]atom-id[@version]`
 ///
 /// It is typically created through the `From<&str>` implementation, not constructed directly.
 ///
@@ -26,7 +17,7 @@ use serde::{Deserialize, Serialize};
 ///   - An alias must include at least a full domain but can be as long as desired.
 ///   - Example: 'work' could be an alias for 'github.com/some-super-long-organization-name'
 /// * `frag`: A URL fragment that follows the alias, completing the URL if the alias is partial. Optional.
-/// * `atom`: The path to the specific atom within the given or local repository.
+/// * `atom`: The atom id specced in the TOML manifest as `atom.id`.
 /// * `version`: The version of the atom. Optional.
 ///
 /// # Examples
@@ -35,13 +26,13 @@ use serde::{Deserialize, Serialize};
 /// ```
 /// use atom::uri::Ref;
 ///
-/// let uri_str = "https://work:our-repo//path/to/atom@1.0.0";
+/// let uri_str = "https://work:our-repo::my-atom@1.0.0";
 /// let uri_ref: Ref = uri_str.into();
 ///
 /// assert_eq!(uri_ref.scheme(), Some("https"));
 /// assert_eq!(uri_ref.alias(), Some("work"));
 /// assert_eq!(uri_ref.frag(), Some("our-repo"));
-/// assert_eq!(uri_ref.atom(), Some("path/to/atom"));
+/// assert_eq!(uri_ref.atom(), Some("my-atom"));
 /// assert_eq!(uri_ref.version(), Some("1.0.0"));
 /// ```
 ///
@@ -49,13 +40,13 @@ use serde::{Deserialize, Serialize};
 /// ```
 /// use atom::uri::Ref;
 ///
-/// let uri_str = "work:our-repo//path/to/atom";
+/// let uri_str = "work:our-repo::my-atom";
 /// let uri_ref: Ref = uri_str.into();
 ///
 /// assert_eq!(uri_ref.scheme(), None);
 /// assert_eq!(uri_ref.alias(), Some("work"));
 /// assert_eq!(uri_ref.frag(), Some("our-repo"));
-/// assert_eq!(uri_ref.atom(), Some("path/to/atom"));
+/// assert_eq!(uri_ref.atom(), Some("my-atom"));
 /// assert_eq!(uri_ref.version(), None);
 /// ```
 ///
@@ -63,13 +54,13 @@ use serde::{Deserialize, Serialize};
 /// ```
 /// use atom::uri::Ref;
 ///
-/// let uri_str = "path/to/atom";
+/// let uri_str = "my-atom";
 /// let uri_ref: Ref = uri_str.into();
 ///
 /// assert_eq!(uri_ref.scheme(), None);
 /// assert_eq!(uri_ref.alias(), None);
 /// assert_eq!(uri_ref.frag(), None);
-/// assert_eq!(uri_ref.atom(), Some("path/to/atom"));
+/// assert_eq!(uri_ref.atom(), Some("my-atom"));
 /// assert_eq!(uri_ref.version(), None);
 /// ```
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -118,6 +109,15 @@ impl<'a> From<&'a str> for Ref<'a> {
     ///
     /// A `Ref` instance representing the parsed URI.
     fn from(input: &'a str) -> Self {
+        use nom::{
+            branch::alt,
+            bytes::complete::{tag, take_until, take_while},
+            character::complete::digit1,
+            combinator::{map, not, opt, peek, recognize, verify},
+            sequence::tuple,
+            IResult,
+        };
+
         let empty = |(rest, opt): (&'a _, Option<&'a str>)| {
             (
                 rest,
@@ -139,6 +139,8 @@ impl<'a> From<&'a str> for Ref<'a> {
                         take_until(":"),
                         tag(":"),
                         peek(not(alt((
+                            // not an atom
+                            tag(":"),
                             // not a port
                             digit1,
                             // not a user:pass@example.com
@@ -153,10 +155,11 @@ impl<'a> From<&'a str> for Ref<'a> {
                 ),
                 |(alias, _, _)| alias,
             ))(input)
+            .map(empty)
         };
 
         let frag = |input: &'a str| {
-            opt(map(tuple((take_until("//"), tag("//"))), |(frag, _)| frag))(input).map(empty)
+            opt(map(tuple((take_until("::"), tag("::"))), |(frag, _)| frag))(input).map(empty)
         };
 
         let atom = |input: &'a str| {

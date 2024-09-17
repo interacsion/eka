@@ -1,5 +1,5 @@
 ---
-source: src/cli/uri/tests/mod.rs
+source: crates/atom/src/uri/tests/mod.rs
 expression: results
 ---
 - scheme: ~
@@ -15,55 +15,55 @@ expression: results
 - scheme: ~
   alias: alias
   frag: path.with/dot
-  atom: my/atom
+  atom: my-atom
   version: ^2
 - scheme: ~
   alias: ~
   frag: "git@github.com:owner/repo"
-  atom: path/to/atom
+  atom: this-atom
   version: ^1
 - scheme: https
   alias: ~
   frag: "example.com/owner/repo:8080"
-  atom: path/to/atom
+  atom: foo
   version: ^1
 - scheme: https
   alias: ~
   frag: github.com/owner/repo
-  atom: path/to/atom
+  atom: bar
   version: ^1
 - scheme: https
   alias: hub
   frag: owner/repo
-  atom: path/to/atom
+  atom: λ
   version: ^1
 - scheme: https
   alias: ~
   frag: "user:password@example.com/my/repo"
-  atom: atom/path
+  atom: id
   version: ^0.2
 - scheme: ~
   alias: hub
   frag: owner/repo
-  atom: path/to/atom
+  atom: yep
   version: ^1
 - scheme: ~
   alias: ~
   frag: "my.ssh.com:my/repo"
-  atom: path/to/atom
+  atom: hello
   version: ~
 - scheme: ~
   alias: ~
   frag: ~
-  atom: /path/to/atom
+  atom: foo
   version: ^0.8
 - scheme: ~
   alias: ~
   frag: ~
-  atom: /path/to/atom
+  atom: foo
   version: ~
 - scheme: ~
   alias: ~
   frag: ~
-  atom: path/to/atom
+  atom: foo
   version: ~
