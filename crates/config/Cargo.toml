@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name    = "config"
+version = "0.1.0"
+
+[dependencies]
+serde.workspace = true
+
+etcetera = "^0.8"
+figment  = { version = "^0.10", features = ["env", "toml"] }

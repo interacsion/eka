@@ -1,4 +1,9 @@
-workspace.members = ["crates/atom", "crates/manifest", "crates/resolve"]
+workspace.members = [
+  "crates/atom",
+  "crates/config",
+  "crates/manifest",
+  "crates/resolve",
+]
 
 [package]
 edition = "2021"
