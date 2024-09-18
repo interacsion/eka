@@ -1,3 +1,6 @@
+#[cfg(feature = "git")]
+use gix::ThreadSafeRepository;
+
 use etcetera::BaseStrategy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -35,8 +38,14 @@ impl Config {
 
         if let Ok(c) = etcetera::choose_base_strategy() {
             let config = c.config_dir().join("eka.toml");
-            fig = fig.adjoin(Toml::file(config));
+            fig = fig.admerge(Toml::file(config));
         }
+
+        #[cfg(feature = "git")]
+        if let Ok(r) = ThreadSafeRepository::discover(".") {
+            let repo_config = r.git_dir().join("info/eka.toml");
+            fig = fig.admerge(Toml::file(repo_config));
+        };
 
         fig.admerge(Env::prefixed("EKA_"))
     }
