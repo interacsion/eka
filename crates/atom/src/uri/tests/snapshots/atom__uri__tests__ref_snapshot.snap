@@ -66,6 +66,13 @@ expression: results
   atom: id
   version: ^0.2
 - scheme: ~
+  user: user
+  pass: password
+  alias: ~
+  frag: example.com/my/repo
+  atom: id
+  version: ^0.2
+- scheme: ~
   user: ~
   pass: ~
   alias: gh

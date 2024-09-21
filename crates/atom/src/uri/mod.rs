@@ -15,8 +15,10 @@ use semver::VersionReq;
 use std::collections::HashMap;
 use thiserror::Error;
 
+#[derive(Debug)]
 struct Aliases(HashMap<&'static str, &'static str>);
 
+#[derive(Debug)]
 struct Parser<'a> {
     aliases: Aliases,
     refs: Ref<'a>,
@@ -66,6 +68,8 @@ impl Uri {
 /// # Components
 ///
 /// * `scheme`: The URI scheme (e.g., "https", "ssh"). Optional.
+/// * `user`: The username. Optional.
+/// * `pass`: The password. Optional.
 /// * `alias`: A user-defined shorthand for a full or partial URL. Optional.
 ///   - An alias must include at least a full domain but can be as long as desired.
 ///   - Example: 'work' could be an alias for 'github.com/some-super-long-organization-name'
@@ -201,6 +205,8 @@ impl<'a> From<&'a str> for Ref<'a> {
             _ => (alias, frag),
         };
 
+        tracing::trace!(scheme, user, pass, alias, frag, atom, version);
+
         Ref {
             scheme,
             user,
@@ -296,8 +302,14 @@ impl<'a> TryFrom<Parser<'a>> for Uri {
         } = refs;
 
         let scheme = match scheme {
-            Some("ssh") | None => "".into(),
+            Some("ssh") => "".into(),
             Some(s) => format!("{}://", s),
+            None => if user.is_some() && pass.is_some() {
+                "https://"
+            } else {
+                ""
+            }
+            .into(),
         };
 
         let start = match (user, pass) {

@@ -134,6 +134,7 @@ dependencies = [
  "semver",
  "serde",
  "thiserror",
+ "tracing",
  "unic-ucd-category",
 ]
 

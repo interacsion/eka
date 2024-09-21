@@ -1,5 +1,6 @@
-use super::LogArgs;
+use super::{Args, LogArgs};
 
+use clap::Parser;
 use serde::Serialize;
 use std::error;
 use std::fmt::Display;
@@ -38,6 +39,10 @@ pub fn init_logger(args: LogArgs) {
         .with(env_filter)
         .with(ErrorLayer::default())
         .init();
+
+    if log_level == LevelFilter::TRACE {
+        let _ = Args::parse();
+    }
 }
 
 pub(super) trait LogValue {

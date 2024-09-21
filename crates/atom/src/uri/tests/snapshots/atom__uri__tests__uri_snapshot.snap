@@ -300,6 +300,43 @@ expression: results?
         url: Some(
             Url {
                 scheme: Https,
+                user: Some(
+                    "user",
+                ),
+                password: Some(
+                    "password",
+                ),
+                host: Some(
+                    "example.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/my/repo",
+            },
+        ),
+        id: Id(
+            "id",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 0,
+                        minor: Some(
+                            2,
+                        ),
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
                 user: None,
                 password: None,
                 host: Some(
