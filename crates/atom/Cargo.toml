@@ -4,18 +4,17 @@ name    = "atom"
 version = "0.1.0"
 
 [dependencies]
+addr              = "^0.15"
 nom               = "^7"
 unic-ucd-category = "^0.9"
 
+config = { path = "../config", features = ["git"] }
+
 semver.workspace    = true
+serde.workspace     = true
 thiserror.workspace = true
 
-serde = { workspace = true, optional = true }
+gix = { workspace = true, default-features = false, features = ["serde"] }
 
 [dev-dependencies]
 insta.workspace = true
-serde.workspace = true
-
-[features]
-default = []
-serde   = ["dep:serde"]

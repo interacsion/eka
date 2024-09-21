@@ -4,7 +4,7 @@ name    = "manifest"
 version = "0.1.0"
 
 [dependencies]
-atom = { path = "../atom", features = ["serde"] }
+atom = { path = "../atom" }
 
 anyhow.workspace    = true
 semver.workspace    = true

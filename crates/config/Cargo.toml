@@ -4,7 +4,8 @@ name    = "config"
 version = "0.1.0"
 
 [dependencies]
-etcetera = "^0.8"
+etcetera    = "^0.8"
+lazy_static = "^1"
 
 serde.workspace = true
 

@@ -10,19 +10,47 @@ use figment::{
     Figment, Metadata, Provider,
 };
 
+lazy_static::lazy_static! {
+    /// Provide a lazyily instantiated static reference to
+    /// a config object parsed from canonical locations
+    /// so that applications have immutable access to it from
+    /// anywhere without ever having to parse the config more
+    /// than once.
+    ///
+    /// For efficiency, all collections in the Config contain
+    /// references to values owned by the deserializer instead
+    /// of owned data, ensuring cheap copying where ownership
+    /// is required.
+    pub static ref CONFIG: Config = load_config();
+}
+
+fn load_config() -> Config {
+    Config::figment().extract().unwrap_or_default()
+}
+
+type Aliases<'a> = HashMap<&'a str, &'a str>;
+
 #[derive(Deserialize, Serialize)]
 pub struct Config {
-    aliases: HashMap<String, String>,
+    #[serde(borrow)]
+    aliases: Aliases<'static>,
+}
+
+impl Config {
+    pub fn aliases(&self) -> &Aliases {
+        &self.aliases
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
             aliases: HashMap::from_iter([
-                ("gh".into(), "github.com".into()),
-                ("gl".into(), "gitlab.com".into()),
-                ("bb".into(), "bitbucket.org".into()),
-                ("sf".into(), "git.code.sf.net".into()),
+                ("gh", "github.com"),
+                ("gl", "gitlab.com"),
+                ("cb", "codeberg.org"),
+                ("bb", "bitbucket.org"),
+                ("sh", "sr.ht"),
             ]),
         }
     }

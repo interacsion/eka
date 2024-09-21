@@ -1,69 +1,449 @@
 ---
 source: crates/atom/src/uri/tests/mod.rs
-expression: results
+expression: results?
 ---
-- scheme: ~
-  alias: alias
-  frag: repo
-  atom: atom
-  version: ^2.0
-- scheme: ~
-  alias: alias
-  frag: ~
-  atom: atom
-  version: ^2.1
-- scheme: ~
-  alias: alias
-  frag: path.with/dot
-  atom: my-atom
-  version: ^2
-- scheme: ~
-  alias: ~
-  frag: "git@github.com:owner/repo"
-  atom: this-atom
-  version: ^1
-- scheme: https
-  alias: ~
-  frag: "example.com/owner/repo:8080"
-  atom: foo
-  version: ^1
-- scheme: https
-  alias: ~
-  frag: github.com/owner/repo
-  atom: bar
-  version: ^1
-- scheme: https
-  alias: hub
-  frag: owner/repo
-  atom: λ
-  version: ^1
-- scheme: https
-  alias: ~
-  frag: "user:password@example.com/my/repo"
-  atom: id
-  version: ^0.2
-- scheme: ~
-  alias: hub
-  frag: owner/repo
-  atom: yep
-  version: ^1
-- scheme: ~
-  alias: ~
-  frag: "my.ssh.com:my/repo"
-  atom: hello
-  version: ~
-- scheme: ~
-  alias: ~
-  frag: ~
-  atom: foo
-  version: ^0.8
-- scheme: ~
-  alias: ~
-  frag: ~
-  atom: foo
-  version: ~
-- scheme: ~
-  alias: ~
-  frag: ~
-  atom: foo
-  version: ~
+[
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "gitlab.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/repo",
+            },
+        ),
+        id: Id(
+            "atom",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 2,
+                        minor: Some(
+                            0,
+                        ),
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "gitlab.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/",
+            },
+        ),
+        id: Id(
+            "atom",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 2,
+                        minor: Some(
+                            1,
+                        ),
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "gitlab.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/path.with/dot",
+            },
+        ),
+        id: Id(
+            "my-atom",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 2,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Ssh,
+                user: Some(
+                    "git",
+                ),
+                password: None,
+                host: Some(
+                    "github.com",
+                ),
+                serialize_alternative_form: true,
+                port: None,
+                path: "owner/repo",
+            },
+        ),
+        id: Id(
+            "this-atom",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Ssh,
+                user: Some(
+                    "git",
+                ),
+                password: None,
+                host: Some(
+                    "github.com",
+                ),
+                serialize_alternative_form: true,
+                port: None,
+                path: "owner/repo",
+            },
+        ),
+        id: Id(
+            "this-atom",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "example.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/owner/repo:8080",
+            },
+        ),
+        id: Id(
+            "foo",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "foo.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/owner/repo",
+            },
+        ),
+        id: Id(
+            "bar",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "github.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/owner/repo",
+            },
+        ),
+        id: Id(
+            "λ",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: Some(
+                    "user",
+                ),
+                password: Some(
+                    "password",
+                ),
+                host: Some(
+                    "example.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/my/repo",
+            },
+        ),
+        id: Id(
+            "id",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 0,
+                        minor: Some(
+                            2,
+                        ),
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "github.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/owner/repo",
+            },
+        ),
+        id: Id(
+            "yep",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "bitbucket.org",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/",
+            },
+        ),
+        id: Id(
+            "yep",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: File,
+                user: None,
+                password: None,
+                host: None,
+                serialize_alternative_form: true,
+                port: None,
+                path: "foo/bar/baz",
+            },
+        ),
+        id: Id(
+            "my-atom",
+        ),
+        version: None,
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: File,
+                user: None,
+                password: None,
+                host: None,
+                serialize_alternative_form: true,
+                port: None,
+                path: "/foo/bar/baz",
+            },
+        ),
+        id: Id(
+            "my-atom",
+        ),
+        version: None,
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Ssh,
+                user: None,
+                password: None,
+                host: Some(
+                    "my.ssh.com",
+                ),
+                serialize_alternative_form: true,
+                port: None,
+                path: "my/repo",
+            },
+        ),
+        id: Id(
+            "hello",
+        ),
+        version: None,
+    },
+    Uri {
+        url: None,
+        id: Id(
+            "foo",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 0,
+                        minor: Some(
+                            8,
+                        ),
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: None,
+        id: Id(
+            "foo",
+        ),
+        version: None,
+    },
+    Uri {
+        url: None,
+        id: Id(
+            "foo",
+        ),
+        version: None,
+    },
+]

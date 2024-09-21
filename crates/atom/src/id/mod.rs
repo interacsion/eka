@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use std::fmt;
@@ -10,12 +9,8 @@ use std::str::FromStr;
 use thiserror::Error;
 use unic_ucd_category::GeneralCategory;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(try_from = "String")
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(try_from = "String")]
 pub struct Id(String);
 
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -42,7 +37,7 @@ impl Id {
         Ok(())
     }
 
-    fn validate(s: &str) -> Result<(), IdError> {
+    pub(super) fn validate(s: &str) -> Result<(), IdError> {
         match s.chars().next().map(Id::validate_start) {
             Some(Ok(_)) => (),
             Some(Err(e)) => return Err(e),
@@ -96,15 +91,16 @@ impl FromStr for Id {
 impl TryFrom<String> for Id {
     type Error = IdError;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Id::from_str(&value)
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Id::validate(&s)?;
+        Ok(Id(s))
     }
 }
 
 impl TryFrom<&str> for Id {
     type Error = IdError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Id::from_str(value)
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Id::from_str(s)
     }
 }

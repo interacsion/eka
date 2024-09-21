@@ -30,7 +30,7 @@ tracing.workspace            = true
 tracing-error.workspace      = true
 tracing-subscriber.workspace = true
 
-atom = { path = "crates/atom", features = ["serde"] }
+atom = { path = "crates/atom" }
 clap = { version = "^4", features = ["derive"] }
 gix  = { workspace = true, optional = true }
 
