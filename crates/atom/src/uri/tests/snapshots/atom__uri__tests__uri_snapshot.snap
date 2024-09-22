@@ -176,8 +176,10 @@ expression: results?
                     "example.com",
                 ),
                 serialize_alternative_form: false,
-                port: None,
-                path: "/owner/repo:8080",
+                port: Some(
+                    8080,
+                ),
+                path: "/owner/repo/",
             },
         ),
         id: Id(
@@ -208,7 +210,7 @@ expression: results?
                 ),
                 serialize_alternative_form: false,
                 port: None,
-                path: "/owner/repo",
+                path: "/owner/repo/",
             },
         ),
         id: Id(
@@ -263,6 +265,107 @@ expression: results?
         url: Some(
             Url {
                 scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "github.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/owner/repo",
+            },
+        ),
+        id: Id(
+            "λ",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Ssh,
+                user: Some(
+                    "git",
+                ),
+                password: None,
+                host: Some(
+                    "github.com",
+                ),
+                serialize_alternative_form: true,
+                port: None,
+                path: "owner/repo",
+            },
+        ),
+        id: Id(
+            "λ",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: Some(
+                    "user",
+                ),
+                password: Some(
+                    "password",
+                ),
+                host: Some(
+                    "example.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/my/repo/",
+            },
+        ),
+        id: Id(
+            "id",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 0,
+                        minor: Some(
+                            2,
+                        ),
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
                 user: Some(
                     "user",
                 ),
@@ -303,9 +406,7 @@ expression: results?
                 user: Some(
                     "user",
                 ),
-                password: Some(
-                    "password",
-                ),
+                password: None,
                 host: Some(
                     "example.com",
                 ),
