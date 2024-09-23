@@ -3,6 +3,7 @@ mod tests;
 
 use serde::{Deserialize, Serialize};
 
+use std::borrow::Borrow;
 use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
@@ -21,6 +22,56 @@ pub enum IdError {
     InvalidStart,
     #[error("The atom id contains invalid characters: '{0}'")]
     InvalidCharacters(String),
+}
+
+pub trait ComputeHash<'id, T>: Borrow<[u8]> {
+    fn compute_hash(&'id self) -> AtomHash<'id, T>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AtomId<T> {
+    root: T,
+    id: Id,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct AtomHash<'id, T> {
+    hash: [u8; 32],
+    id: &'id AtomId<T>,
+}
+
+impl<T> Deref for AtomHash<'_, T> {
+    type Target = [u8; 32];
+    fn deref(&self) -> &Self::Target {
+        &self.hash
+    }
+}
+
+impl<'id, T: AsRef<[u8]>> ComputeHash<'id, T> for AtomId<T> {
+    fn compute_hash(&'id self) -> AtomHash<'id, T> {
+        use blake3::Hasher;
+
+        let key = blake3::derive_key("AtomId", self.root.as_ref());
+
+        let mut hasher = Hasher::new_keyed(&key);
+        hasher.update(self.id.as_bytes());
+        AtomHash {
+            hash: *hasher.finalize().as_bytes(),
+            id: self,
+        }
+    }
+}
+
+impl<T> Borrow<[u8]> for AtomId<T> {
+    fn borrow(&self) -> &[u8] {
+        self.id.as_bytes()
+    }
+}
+
+impl<T> AtomId<T> {
+    pub fn new(root: T, id: Id) -> Self {
+        AtomId { root, id }
+    }
 }
 
 impl Id {

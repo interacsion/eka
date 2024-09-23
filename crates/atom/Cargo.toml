@@ -5,15 +5,19 @@ version = "0.1.0"
 
 [dependencies]
 addr              = "^0.15"
+base64            = "^0.22"
+blake3            = "^1.5"
 nom               = "^7"
 unic-ucd-category = "^0.9"
 
 config = { path = "../config", features = ["git"] }
 
 lazy_static.workspace = true
+path-clean.workspace  = true
 semver.workspace      = true
 serde.workspace       = true
 thiserror.workspace   = true
+tokio.workspace       = true
 tracing.workspace     = true
 
 gix = { workspace = true, default-features = false, features = ["serde"] }
