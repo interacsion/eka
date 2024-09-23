@@ -51,6 +51,7 @@ impl Default for Config {
                 ("cb", "codeberg.org"),
                 ("bb", "bitbucket.org"),
                 ("sh", "sr.ht"),
+                ("pkgs", "gh:nixos/nixpkgs"),
             ]),
         }
     }

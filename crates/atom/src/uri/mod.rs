@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Debug)]
-struct Aliases(HashMap<&'static str, &'static str>);
+struct Aliases(&'static HashMap<&'static str, &'static str>);
 
 /// Represents the parsed components of an atom reference URI.
 ///
@@ -71,11 +71,12 @@ struct AtomRef<'a> {
 }
 
 use nom::{
+    branch::alt,
     bytes::complete::{tag, take_until},
     character::complete::digit1,
-    combinator::{map, not, opt, peek, verify},
-    sequence::tuple,
-    IResult,
+    combinator::{all_consuming, map, not, opt, peek, rest, verify},
+    sequence::{separated_pair, tuple},
+    IResult, ParseTo,
 };
 
 fn parse(input: &str) -> Ref {
@@ -102,21 +103,64 @@ fn parse(input: &str) -> Ref {
     Ref { url, atom }
 }
 
-fn parse_alias(input: &str) -> IResult<&str, Option<&str>> {
-    opt(map(
-        verify(
-            tuple((
-                take_until(":"),
-                tag(":"),
-                // not a port
-                peek(not(digit1)),
+fn parse_alias(input: &str) -> (&str, Option<&str>) {
+    opt(verify(
+        map(
+            alt((
+                tuple((
+                    take_until::<_, _, ()>(":"),
+                    tag(":"),
+                    // not a port
+                    peek(not(digit1)),
+                )),
+                map(rest, |a| (a, "", ())),
             )),
-            // not an scp url
-            |(a, _, _)| !(a as &str).contains('.'),
+            |(a, _, _)| a,
         ),
-        |(alias, _, _)| alias,
+        // not an scp url
+        |a| {
+            !(a as &str)
+                .chars()
+                .any(|c| c == ':' || c == '/' || c == '.')
+        },
     ))(input)
     .map(empty_none)
+    .unwrap_or((input, None))
+}
+
+fn parse_host(input: &str) -> IResult<&str, (&str, &str)> {
+    alt((first_path, ssh_host, map(rest, |a| (a, ""))))(input)
+}
+
+fn parse_port(input: &str) -> IResult<&str, Option<(&str, &str)>> {
+    opt(all_consuming(separated_pair(
+        take_until(":"),
+        tag(":"),
+        digit1,
+    )))(input)
+}
+
+fn ssh_host(input: &str) -> IResult<&str, (&str, &str)> {
+    let (rest, (host, colon)) = tuple((take_until(":"), tag(":")))(input)?;
+
+    let (rest, port) = opt(tuple((peek(digit1), take_until(":"), tag(":"))))(rest)?;
+
+    match port {
+        Some((_, port_str, second_colon)) => {
+            let full_host = &input[..(host.len() + colon.len() + port_str.len())];
+            Ok((rest, (full_host, second_colon)))
+        }
+        None => Ok((rest, (host, colon))),
+    }
+}
+
+fn first_path(input: &str) -> IResult<&str, (&str, &str)> {
+    tuple((
+        verify(take_until("/"), |h: &str| {
+            !h.contains(':') || parse_port(h).ok().and_then(|(_, p)| p).is_some()
+        }),
+        tag("/"),
+    ))(input)
 }
 
 type UrlPrefix<'a> = (Option<&'a str>, Option<&'a str>, Option<&'a str>);
@@ -202,20 +246,20 @@ pub enum UriError {
 }
 
 use std::borrow::Cow;
-impl<'a> Aliases {
+impl Aliases {
     fn get_alias(&self, s: &str) -> Result<&str, UriError> {
         self.get(s)
             .map_or_else(|| Err(UriError::NoAlias(s.into())), |s| Ok(*s))
     }
 
-    fn resolve_alias(&'a self, s: &str) -> Result<Cow<'a, str>, UriError> {
+    fn resolve_alias(&'static self, s: &str) -> Result<Cow<'static, str>, UriError> {
         let res = self.get_alias(s)?;
 
         // allow one level of indirection in alises, e.g. `org = gh:my-org`
         let res = match res.split_once(':') {
             Some((s, rest)) => {
                 let res = self.get_alias(s)?;
-                Cow::Owned(format!("{}:{}", res, rest))
+                Cow::Owned(format!("{}/{}", res, rest))
             }
             None => Cow::Borrowed(res),
         };
@@ -227,7 +271,7 @@ impl<'a> Aliases {
 impl Deref for Aliases {
     type Target = HashMap<&'static str, &'static str>;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0
     }
 }
 
@@ -259,93 +303,108 @@ impl<'a> From<&'a str> for AtomRef<'a> {
     }
 }
 
+lazy_static::lazy_static! {
+    static ref ALIASES: Aliases = Aliases(config::CONFIG.aliases());
+}
+
 impl<'a> UrlRef<'a> {
-    fn render_frag(&self) -> Option<String> {
-        use config::CONFIG;
+    fn render_alias(&self) -> Option<(&str, Option<Cow<'static, str>>)> {
+        let (frag, alias) = parse_alias(self.frag?);
 
-        let aliases = Aliases(CONFIG.aliases().to_owned());
-
-        let (frag, alias) = match parse_alias(self.frag?) {
-            Ok((f, Some(a))) => (Some(f), a),
-            Ok((f, None)) => (None, f),
-            Err(_) => (None, self.frag?),
-        };
-
-        let resolved = aliases.resolve_alias(alias).unwrap_or(Cow::from(alias));
-        let delim = match self.scheme {
-            Some("ssh") => ":",
-            Some(_) => "/",
-            None => {
-                if frag.is_none() {
-                    ""
-                } else if alias == resolved {
-                    ":"
-                } else {
-                    match (self.user, self.pass) {
-                        (Some(_), None) => ":",
-                        _ => "/",
-                    }
-                }
-            }
-        };
-        tracing::trace!(alias, %resolved, delim, frag);
-        Some(format!("{}{}{}", resolved, delim, frag.unwrap_or("")))
+        alias.and_then(|a| ALIASES.resolve_alias(a).ok().map(|a| (frag, Some(a))))
     }
 
-    fn render_scheme(&self) -> Cow<'a, str> {
-        match self.scheme {
-            Some("ssh") => Cow::from(""),
-            Some(s) => Cow::from(format!("{}://", s)),
-            None => Cow::from(if self.user.is_some() && self.pass.is_some() {
-                "https://"
+    fn to_url(&self) -> Option<Url> {
+        let (frag, resolved) = self.render_alias().unwrap_or((self.frag?, None));
+
+        #[allow(clippy::unnecessary_unwrap)]
+        let (rest, (maybe_host, delim)) = if resolved.is_some() {
+            resolved
+                .as_ref()
+                .and_then(|r| parse_host(r).ok())
+                .unwrap_or(("", (resolved.as_ref().unwrap(), "")))
+        } else {
+            parse_host(frag).unwrap_or(("", (frag, "")))
+        };
+
+        let (maybe_host, port) = parse_port(maybe_host)
+            .ok()
+            .and_then(|(_, h)| h.map(|(h, p)| (h, p.parse_to())))
+            .unwrap_or((maybe_host, None));
+
+        let host = addr::parse_dns_name(maybe_host).ok().and_then(|s| {
+            if s.has_known_suffix() && maybe_host.contains('.')
+                || self.user.is_some()
+                || self.pass.is_some()
+            {
+                Some(maybe_host)
             } else {
-                ""
-            }),
-        }
-    }
-
-    fn render(&self) -> Option<String> {
-        let scheme = self.render_scheme();
-        self.render_frag().map(|frag| match (self.user, self.pass) {
-            (None, _) => format!("{}{}", scheme, frag),
-            (Some(u), None) => {
-                format!("{}{}@{}", scheme, u, frag)
+                None
             }
-            (Some(u), Some(p)) => {
-                format!("{}{}:{}@{}", scheme, u, p, frag)
-            }
-        })
-    }
-
-    fn to_url(&self) -> Result<Option<Url>, UriError> {
+        });
         use gix::url::Scheme;
 
-        let url_string = self.render();
-
-        let url = match url_string.to_owned().map(TryInto::try_into).transpose()? {
-            Some(
-                url @ Url {
-                    scheme: Scheme::File,
-                    ..
-                },
-            ) => {
-                let path = url.path.to_string();
-                if path
-                    .split_once('/')
-                    .and_then(|(domain, _)| addr::parse_dns_name(domain).ok())
-                    .or_else(|| addr::parse_dns_name(&path).ok())
-                    .filter(|domain| domain.has_known_suffix() && domain.as_str().contains('.'))
-                    .is_some()
-                {
-                    Some(format!("https://{}", &url_string.unwrap()).try_into()?)
+        let scheme: Scheme = self
+            .scheme
+            .unwrap_or_else(|| {
+                if host.is_none() {
+                    "file"
+                } else if delim == ":" || self.user.is_some() && self.pass.is_none() {
+                    "ssh"
                 } else {
-                    Some(url)
+                    "https"
                 }
-            }
-            p => p,
+            })
+            .into();
+
+        // special case for empty fragments, e.g. foo::my-atom
+        let rest = if rest.is_empty() { frag } else { rest };
+
+        let path = if host.is_none() {
+            format!("{}{}{}", maybe_host, delim, rest)
+        } else if !rest.starts_with('/') {
+            format!("/{}", rest)
+        } else {
+            rest.into()
         };
 
-        Ok(url)
+        tracing::trace!(
+            ?scheme,
+            delim,
+            host,
+            port,
+            path,
+            rest,
+            maybe_host,
+            frag,
+            ?resolved
+        );
+
+        let alternate_form = scheme == Scheme::File || scheme == Scheme::Ssh;
+        let port = if scheme == Scheme::Ssh {
+            tracing::warn!(
+                port,
+                "ignoring configured port due to an upstream parsing bug"
+            );
+            None
+        } else {
+            port
+        };
+
+        Url::from_parts(
+            scheme,
+            self.user.map(Into::into),
+            self.pass.map(Into::into),
+            host.map(Into::into),
+            port,
+            path.into(),
+            alternate_form,
+        )
+        .map_err(|e| {
+            tracing::debug!(?e);
+            e
+        })
+        .ok()
     }
 }
 
@@ -366,9 +425,11 @@ impl<'a> TryFrom<Ref<'a>> for Uri {
     fn try_from(refs: Ref<'a>) -> Result<Self, Self::Error> {
         let Ref { url, atom } = refs;
 
-        let url = url.to_url()?;
+        let url = url.to_url();
 
         let (id, version) = atom.render()?;
+
+        tracing::trace!(?url, %id, ?version);
 
         Ok(Uri { url, id, version })
     }
@@ -378,9 +439,8 @@ impl<'a> TryFrom<UrlRef<'a>> for Url {
     type Error = UriError;
     fn try_from(refs: UrlRef<'a>) -> Result<Self, Self::Error> {
         match refs.to_url() {
-            Ok(Some(url)) => Ok(url),
-            Ok(None) => Err(UriError::NoUrl),
-            Err(e) => Err(e),
+            Some(url) => Ok(url),
+            None => Err(UriError::NoUrl),
         }
     }
 }

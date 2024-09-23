@@ -11,6 +11,7 @@ const ALIASES: &[&str] = &[
     "https://gh:owner/repo::λ@^1",
     "gh:owner/repo::λ@^1",
     "git@gh:owner/repo::λ@^1",
+    "pkgs::zlib@^1",
     "https://user:password@example.com/my/repo::id@^0.2",
     "user:password@example.com/my/repo::id@^0.2",
     "user@example.com/my/repo::id@^0.2",

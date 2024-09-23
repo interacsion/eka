@@ -130,6 +130,7 @@ dependencies = [
  "config",
  "gix",
  "insta",
+ "lazy_static",
  "nom",
  "semver",
  "serde",

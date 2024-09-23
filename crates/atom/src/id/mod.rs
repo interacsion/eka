@@ -25,13 +25,7 @@ pub enum IdError {
 
 impl Id {
     fn validate_start(c: char) -> Result<(), IdError> {
-        if matches!(
-            GeneralCategory::of(c),
-            GeneralCategory::DecimalNumber | GeneralCategory::LetterNumber
-        ) || c == '_'
-            || c == '-'
-            || !Id::is_valid_char(c)
-        {
+        if Id::is_invalid_start(c) {
             return Err(IdError::InvalidStart);
         }
         Ok(())
@@ -52,7 +46,15 @@ impl Id {
 
         Ok(())
     }
-    fn is_valid_char(c: char) -> bool {
+    pub(super) fn is_invalid_start(c: char) -> bool {
+        matches!(
+            GeneralCategory::of(c),
+            GeneralCategory::DecimalNumber | GeneralCategory::LetterNumber
+        ) || c == '_'
+            || c == '-'
+            || !Id::is_valid_char(c)
+    }
+    pub(super) fn is_valid_char(c: char) -> bool {
         matches!(
             GeneralCategory::of(c),
             GeneralCategory::LowercaseLetter

@@ -83,6 +83,14 @@ expression: results
     id: λ
     version: ^1
 - url:
+    scheme: ~
+    user: ~
+    pass: ~
+    frag: pkgs
+  atom:
+    id: zlib
+    version: ^1
+- url:
     scheme: https
     user: user
     pass: password

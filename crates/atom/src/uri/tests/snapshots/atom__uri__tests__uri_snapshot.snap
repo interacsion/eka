@@ -113,7 +113,7 @@ expression: results?
                 ),
                 serialize_alternative_form: true,
                 port: None,
-                path: "owner/repo",
+                path: "/owner/repo",
             },
         ),
         id: Id(
@@ -146,7 +146,7 @@ expression: results?
                 ),
                 serialize_alternative_form: true,
                 port: None,
-                path: "owner/repo",
+                path: "/owner/repo",
             },
         ),
         id: Id(
@@ -179,7 +179,7 @@ expression: results?
                 port: Some(
                     8080,
                 ),
-                path: "/owner/repo/",
+                path: "/owner/repo",
             },
         ),
         id: Id(
@@ -210,7 +210,7 @@ expression: results?
                 ),
                 serialize_alternative_form: false,
                 port: None,
-                path: "/owner/repo/",
+                path: "/owner/repo",
             },
         ),
         id: Id(
@@ -305,11 +305,42 @@ expression: results?
                 ),
                 serialize_alternative_form: true,
                 port: None,
-                path: "owner/repo",
+                path: "/owner/repo",
             },
         ),
         id: Id(
             "λ",
+        ),
+        version: Some(
+            VersionReq {
+                comparators: [
+                    Comparator {
+                        op: Caret,
+                        major: 1,
+                        minor: None,
+                        patch: None,
+                        pre: Prerelease(""),
+                    },
+                ],
+            },
+        ),
+    },
+    Uri {
+        url: Some(
+            Url {
+                scheme: Https,
+                user: None,
+                password: None,
+                host: Some(
+                    "github.com",
+                ),
+                serialize_alternative_form: false,
+                port: None,
+                path: "/nixos/nixpkgs",
+            },
+        ),
+        id: Id(
+            "zlib",
         ),
         version: Some(
             VersionReq {
@@ -340,7 +371,7 @@ expression: results?
                 ),
                 serialize_alternative_form: false,
                 port: None,
-                path: "/my/repo/",
+                path: "/my/repo",
             },
         ),
         id: Id(
@@ -402,7 +433,7 @@ expression: results?
     Uri {
         url: Some(
             Url {
-                scheme: Https,
+                scheme: Ssh,
                 user: Some(
                     "user",
                 ),
@@ -410,7 +441,7 @@ expression: results?
                 host: Some(
                     "example.com",
                 ),
-                serialize_alternative_form: false,
+                serialize_alternative_form: true,
                 port: None,
                 path: "/my/repo",
             },
@@ -541,7 +572,7 @@ expression: results?
                 ),
                 serialize_alternative_form: true,
                 port: None,
-                path: "my/repo",
+                path: "/my/repo",
             },
         ),
         id: Id(

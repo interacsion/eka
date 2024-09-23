@@ -10,10 +10,11 @@ unic-ucd-category = "^0.9"
 
 config = { path = "../config", features = ["git"] }
 
-semver.workspace    = true
-serde.workspace     = true
-thiserror.workspace = true
-tracing.workspace   = true
+lazy_static.workspace = true
+semver.workspace      = true
+serde.workspace       = true
+thiserror.workspace   = true
+tracing.workspace     = true
 
 gix = { workspace = true, default-features = false, features = ["serde"] }
 
