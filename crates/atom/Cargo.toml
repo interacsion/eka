@@ -10,17 +10,17 @@ blake3            = "^1.5"
 nom               = "^7"
 unic-ucd-category = "^0.9"
 
-config = { path = "../config", features = ["git"] }
-
 lazy_static.workspace = true
 path-clean.workspace  = true
 semver.workspace      = true
 serde.workspace       = true
 thiserror.workspace   = true
 tokio.workspace       = true
+toml_edit.workspace   = true
 tracing.workspace     = true
 
-gix = { workspace = true, default-features = false, features = ["serde"] }
+config = { path = "../config", features = ["git"] }
+gix    = { workspace = true, default-features = false, features = ["serde"] }
 
 [dev-dependencies]
 insta.workspace = true

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::id::IdError;
 
-use super::Id;
+use super::id::Id;
 
 use gix::Url;
 use semver::VersionReq;

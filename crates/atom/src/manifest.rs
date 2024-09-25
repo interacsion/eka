@@ -1,4 +1,4 @@
-use atom::{Atom, Id};
+use crate::{id::Id, Atom};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;

@@ -28,14 +28,22 @@ pub trait ComputeHash<'id, T>: Borrow<[u8]> {
     fn compute_hash(&'id self) -> AtomHash<'id, T>;
 }
 
+/// This trait must be implemented to construct new instances of an
+/// an AtomId. It tells the "new" constructor how to calculate the
+/// value for the `root` field.
+pub trait CalculateRoot<R> {
+    type Error;
+    fn calculate_root(&self) -> Result<R, Self::Error>;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AtomId<T> {
-    root: T,
+pub struct AtomId<R> {
+    root: R,
     id: Id,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct AtomHash<'id, T> {
+pub struct AtomHash<'id, T> {
     hash: [u8; 32],
     id: &'id AtomId<T>,
 }
@@ -47,8 +55,8 @@ impl<T> Deref for AtomHash<'_, T> {
     }
 }
 
-impl<'id, T: AsRef<[u8]>> ComputeHash<'id, T> for AtomId<T> {
-    fn compute_hash(&'id self) -> AtomHash<'id, T> {
+impl<'id, R: AsRef<[u8]>> ComputeHash<'id, R> for AtomId<R> {
+    fn compute_hash(&'id self) -> AtomHash<'id, R> {
         use blake3::Hasher;
 
         let key = blake3::derive_key("AtomId", self.root.as_ref());
@@ -68,9 +76,16 @@ impl<T> Borrow<[u8]> for AtomId<T> {
     }
 }
 
-impl<T> AtomId<T> {
-    pub fn new(root: T, id: Id) -> Self {
-        AtomId { root, id }
+impl<R> AtomId<R>
+where
+    for<'id> AtomId<R>: ComputeHash<'id, R>,
+{
+    pub fn compute<T>(src: &T, id: Id) -> Result<Self, T::Error>
+    where
+        T: CalculateRoot<R>,
+    {
+        let root = src.calculate_root()?;
+        Ok(AtomId { root, id })
     }
 }
 
@@ -155,5 +170,29 @@ impl TryFrom<&str> for Id {
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         Id::from_str(s)
+    }
+}
+
+use std::fmt::Display;
+
+impl<R> AtomId<R> {
+    pub fn id(&self) -> &Id {
+        &self.id
+    }
+}
+
+impl<R> Display for AtomId<R>
+where
+    for<'id> AtomId<R>: ComputeHash<'id, R>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.compute_hash())
+    }
+}
+
+impl<'a, R> Display for AtomHash<'a, R> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        write!(f, "{}", URL_SAFE_NO_PAD.encode(self.hash))
     }
 }

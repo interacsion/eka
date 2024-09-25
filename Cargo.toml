@@ -1,9 +1,4 @@
-workspace.members = [
-  "crates/atom",
-  "crates/config",
-  "crates/manifest",
-  "crates/resolve",
-]
+workspace.members = ["crates/atom", "crates/config", "crates/resolve"]
 
 [package]
 edition = "2021"
@@ -17,8 +12,6 @@ opt-level     = 3
 strip         = true
 
 [dependencies]
-manifest.path = "crates/manifest"
-
 anyhow.workspace             = true
 clap.workspace               = true
 serde.workspace              = true

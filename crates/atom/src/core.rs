@@ -1,4 +1,4 @@
-use super::Id;
+use super::id::Id;
 
 use semver::Version;
 use serde::{Deserialize, Serialize};

@@ -52,7 +52,7 @@ pub(super) trait LogValue {
     fn trim_whitespace(&self) -> String
     where
         Self: Display;
-    fn log_err<T, E>(self) -> Result<T, E>
+    fn _log_err<T, E>(self) -> Result<T, E>
     where
         Self: Sized + Into<Result<T, E>>,
         E: Display + error::Error + LogValue;
@@ -71,7 +71,7 @@ impl<T> LogValue for T {
     {
         self.to_string().trim().to_owned()
     }
-    fn log_err<P, E>(self) -> Result<P, E>
+    fn _log_err<P, E>(self) -> Result<P, E>
     where
         Self: Sized + Into<Result<P, E>>,
         E: Display + error::Error + LogValue,
