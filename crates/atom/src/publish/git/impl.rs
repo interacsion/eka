@@ -1,4 +1,7 @@
-use super::{AtomContext, GitRecord, GitResult, PublishGitContext};
+use super::{
+    AtomContext, GitAtomId, GitRecord, GitResult, PublishGitContext, ATOM_FORMAT_VERSION,
+    ATOM_REF_TOP_LEVEL, ATOM_SPEC_REF, ATOM_SRC_REF, ATOM_TIP_REF, EMPTY,
+};
 use crate::{publish::error::GitError, publish::Content, Atom, AtomId, Manifest};
 
 use gix::{
@@ -26,7 +29,7 @@ impl<'a> PublishGitContext<'a> {
 
         let id = AtomId::compute(&self.commit, atom.id.clone())?;
 
-        let context = AtomContext::set(&atom, &dir, self);
+        let context = AtomContext::set(&atom, &id, &dir, self);
 
         let atom_dir_entry = context.maybe_dir();
 
@@ -96,18 +99,31 @@ impl<'a> PublishGitContext<'a> {
     }
 }
 
-enum TreeKind {
+enum RefKind {
     Spec,
-    Directory,
+    Tip,
+    Src,
+}
+
+struct AtomRef<'a> {
+    prefix: &'a str,
+    kind: RefKind,
+}
+
+impl<'a> AtomRef<'a> {
+    fn new(kind: RefKind, prefix: &'a str) -> Self {
+        AtomRef { prefix, kind }
+    }
 }
 
 use std::fmt;
 
-impl fmt::Display for TreeKind {
+impl<'a> fmt::Display for AtomRef<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TreeKind::Spec => write!(f, "{}", SPEC),
-            TreeKind::Directory => write!(f, "{}", DIRECTORY),
+        match self.kind {
+            RefKind::Spec => write!(f, "{}/{}", self.prefix, ATOM_SPEC_REF),
+            RefKind::Tip => write!(f, "{}/{}", self.prefix, ATOM_TIP_REF),
+            RefKind::Src => write!(f, "{}/{}", self.prefix, ATOM_SRC_REF),
         }
     }
 }
@@ -115,15 +131,23 @@ impl fmt::Display for TreeKind {
 use crate::publish::MaybeSkipped;
 
 impl<'a> AtomContext<'a> {
-    fn set(atom: &'a Atom, path: &'a Path, context: &'a PublishGitContext) -> Self {
-        let prefix = format!("atoms/{}/{}", path.to_string_lossy(), atom.version);
+    fn set(
+        atom: &'a Atom,
+        id: &'a GitAtomId,
+        path: &'a Path,
+        context: &'a PublishGitContext,
+    ) -> Self {
+        let prefix = format!("{}/{}/{}", ATOM_REF_TOP_LEVEL, id, atom.version);
         Self {
             atom,
             path,
             context,
-            manifest: format!("{}/{}", prefix, TreeKind::Spec),
-            source: format!("{}/{}", prefix, TreeKind::Directory),
+            prefix,
         }
+    }
+
+    fn refs(&self, kind: RefKind) -> AtomRef {
+        AtomRef::new(kind, &self.prefix)
     }
 
     fn maybe_dir(&self) -> Option<Entry> {
@@ -133,14 +157,15 @@ impl<'a> AtomContext<'a> {
         }
     }
 
-    fn ref_exists(&self, tree: &AtomTree, kind: TreeKind) -> bool {
-        let r = match kind {
-            TreeKind::Spec => &self.manifest,
-            TreeKind::Directory => &self.source,
-        };
+    fn ref_exists(&self, tree: &AtomTree, atom_ref: AtomRef) -> bool {
         let id = self.context.compute_hash(tree);
         if let Some(id) = id {
-            self.context.repo.find_tree(id).is_ok() && self.context.repo.find_reference(r).is_ok()
+            self.context.repo.find_tree(id).is_ok()
+                && self
+                    .context
+                    .repo
+                    .find_reference(&atom_ref.to_string())
+                    .is_ok()
         } else {
             false
         }
@@ -157,24 +182,24 @@ impl<'a> AtomContext<'a> {
 
         let mut entries: Vec<AtomEntry> = Vec::with_capacity(2);
 
-        let manifest_tree = atom_tree(&mut entries, atom);
+        let spec_tree = atom_tree(&mut entries, atom);
 
-        let manifest_exists = self.ref_exists(&manifest_tree, TreeKind::Spec);
+        let spec_exists = self.ref_exists(&spec_tree, self.refs(RefKind::Spec));
 
-        if dir.is_none() && manifest_exists {
+        if dir.is_none() && spec_exists {
             return Ok(Skipped(self.atom.id.clone()));
         }
 
         if let Some(entry) = dir {
             let dir_tree = atom_tree(&mut entries, &entry);
-            if self.ref_exists(&dir_tree, TreeKind::Directory) && manifest_exists {
+            if self.ref_exists(&dir_tree, self.refs(RefKind::Tip)) && spec_exists {
                 return Ok(Skipped(self.atom.id.clone()));
             }
-            let spec = self.context.write_object(manifest_tree)?;
+            let spec = self.context.write_object(spec_tree)?;
             let dir = Some(self.context.write_object(dir_tree)?);
             Ok(Wrote(AtomTreeIds { spec, dir }))
         } else {
-            let spec = self.context.write_object(manifest_tree)?;
+            let spec = self.context.write_object(spec_tree)?;
             Ok(Wrote(AtomTreeIds { spec, dir: None }))
         }
     }
@@ -202,7 +227,7 @@ impl<'a> AtomContext<'a> {
             message: format!("{}: {}", self.atom.id, self.atom.version).into(),
             extra_headers: vec![
                 ("origin".into(), self.context.commit.id().as_bytes().into()),
-                ("version".into(), FORMAT_VERSION.into()),
+                ("version".into(), ATOM_FORMAT_VERSION.into()),
             ],
         };
         let src = self.context.commit.id;
@@ -229,39 +254,35 @@ impl<'a> CommittedAtom {
         &'a self,
         context: &'a AtomContext,
         id: ObjectId,
-        kind: TreeKind,
+        atom_ref: AtomRef,
     ) -> GitResult<Reference> {
         use gix::refs::transaction::PreviousValue;
 
-        let r = match kind {
-            TreeKind::Spec => &context.manifest,
-            TreeKind::Directory => &context.source,
-        };
         Ok(context.context.repo.reference(
-            format!("refs/{}", r.to_owned()),
+            format!("refs/{}", atom_ref),
             id,
             PreviousValue::MustNotExist,
             format!(
                 "publish: {}: {}-{}",
-                context.atom.id, context.atom.version, kind
+                context.atom.id, context.atom.version, atom_ref
             ),
         )?)
     }
     /// Method to write references for the committed atom
     fn write_refs(&'a self, context: &'a AtomContext) -> GitResult<AtomReferences> {
-        let Self { commit, tip, .. } = self;
+        let Self { commit, tip, src } = self;
 
         Ok(if let Some(spec) = commit.parents.first() {
             AtomReferences {
-                spec: self.write_ref(context, *spec, TreeKind::Spec)?,
-                dir: Some(self.write_ref(context, *tip, TreeKind::Directory)?),
-                atom: self,
+                spec: self.write_ref(context, *spec, context.refs(RefKind::Spec))?,
+                tip: self.write_ref(context, *tip, context.refs(RefKind::Tip))?,
+                src: self.write_ref(context, *src, context.refs(RefKind::Src))?,
             }
         } else {
             AtomReferences {
-                spec: self.write_ref(context, *tip, TreeKind::Spec)?,
-                dir: None,
-                atom: self,
+                spec: self.write_ref(context, *tip, context.refs(RefKind::Spec))?,
+                tip: self.write_ref(context, *tip, context.refs(RefKind::Tip))?,
+                src: self.write_ref(context, *src, context.refs(RefKind::Src))?,
             }
         })
     }
@@ -276,11 +297,10 @@ impl<'a> AtomReferences<'a> {
     /// Once `gix` is further along we can use it directly.
     fn push(self, context: &'a PublishGitContext) -> GitContent {
         let remote = context.remote_str.to_owned();
-        let spec_ref = self.spec.name().as_bstr().to_string();
-        let dir_ref = self.dir.as_ref().map(|r| r.name().as_bstr().to_string());
         let mut tasks = context.push_tasks.borrow_mut();
 
-        if let Some(r) = dir_ref {
+        for r in [&self.tip, &self.spec, &self.src] {
+            let r = r.name().as_bstr().to_string();
             let remote = remote.clone();
             let task = async move {
                 let result = run_git_command(&["push", &remote, format!("{}:{}", r, r).as_str()])?;
@@ -290,20 +310,10 @@ impl<'a> AtomReferences<'a> {
             tasks.spawn(task);
         }
 
-        let task = async move {
-            let result = run_git_command(&[
-                "push",
-                &remote,
-                format!("{}:{}", spec_ref, spec_ref).as_str(),
-            ])?;
-            Ok(result)
-        };
-        tasks.spawn(task);
-
         GitContent {
             spec: self.spec.detach(),
-            dir: self.dir.map(|r| r.detach()),
-            atom: self.atom.clone(),
+            tip: self.tip.detach(),
+            src: self.src.detach(),
         }
     }
 }
@@ -361,8 +371,3 @@ impl CommittedAtom {
         &self.src
     }
 }
-
-const FORMAT_VERSION: &str = "1";
-const EMPTY: &str = "";
-const DIRECTORY: &str = "dir";
-const SPEC: &str = "spec";

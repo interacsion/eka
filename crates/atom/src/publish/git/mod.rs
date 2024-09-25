@@ -31,8 +31,8 @@ struct AtomContext<'a> {
     atom: &'a Atom,
     path: &'a Path,
     context: &'a PublishGitContext<'a>,
-    manifest: String,
-    source: String,
+    /// the git ref prefix pointing to this atom
+    prefix: String,
 }
 
 trait ExtendRepo {
@@ -63,7 +63,7 @@ use gix::object::tree::Entry;
 pub struct CommittedAtom {
     /// the raw structure representing the atom that was successfully committed
     commit: AtomCommit,
-    /// The object id of the tip of the atom
+    /// The object id of the tip of the atom's history
     tip: ObjectId,
     /// A reference back to the original commit which the blob objects in the atom are referenced from
     src: ObjectId,
@@ -84,27 +84,27 @@ use gix::Reference;
 pub(super) struct AtomReferences<'a> {
     /// Git ref pointing to the atom's manifest and lock
     spec: Reference<'a>,
-    /// The git ref pointing to the atom's optional directory of source files
-    dir: Option<Reference<'a>>,
-    /// A reference to the committed atom these references were built from
-    atom: &'a CommittedAtom,
+    /// The git ref pointing to the tip of the atom's history
+    tip: Reference<'a>,
+    /// The git ref pointing to the commit the atom's blob objects are referenced from
+    src: Reference<'a>,
 }
 
 pub struct GitContent {
     spec: gix::refs::Reference,
-    dir: Option<gix::refs::Reference>,
-    atom: CommittedAtom,
+    tip: gix::refs::Reference,
+    src: gix::refs::Reference,
 }
 
 impl GitContent {
     pub fn spec(&self) -> &gix::refs::Reference {
         &self.spec
     }
-    pub fn dir(&self) -> Option<&gix::refs::Reference> {
-        self.dir.as_ref()
+    pub fn tip(&self) -> &gix::refs::Reference {
+        &self.tip
     }
-    pub fn atom(&self) -> &CommittedAtom {
-        &self.atom
+    pub fn src(&self) -> &gix::refs::Reference {
+        &self.src
     }
 }
 
@@ -247,3 +247,10 @@ impl AsRef<[u8]> for Root {
         self.0.as_bytes()
     }
 }
+
+const ATOM_FORMAT_VERSION: &str = "1";
+const EMPTY: &str = "";
+const ATOM_REF_TOP_LEVEL: &str = "atoms";
+const ATOM_TIP_REF: &str = "tip";
+const ATOM_SPEC_REF: &str = "spec";
+const ATOM_SRC_REF: &str = "src";
