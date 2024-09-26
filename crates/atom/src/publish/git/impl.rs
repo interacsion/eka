@@ -140,6 +140,7 @@ impl<'a> AtomContext<'a> {
         let prefix = format!("{}/{}/{}", ATOM_REF_TOP_LEVEL, id, atom.version);
         Self {
             atom,
+            id,
             path,
             context,
             prefix,
@@ -226,8 +227,16 @@ impl<'a> AtomContext<'a> {
             encoding: None,
             message: format!("{}: {}", self.atom.id, self.atom.version).into(),
             extra_headers: vec![
-                ("origin".into(), self.context.commit.id().as_bytes().into()),
-                ("version".into(), ATOM_FORMAT_VERSION.into()),
+                ("format".into(), ATOM_FORMAT_VERSION.into()),
+                ("root".into(), self.id.root().to_hex().to_string().into()),
+                (
+                    ATOM_SRC_REF.into(),
+                    self.context.commit.id().to_hex().to_string().into(),
+                ),
+                (
+                    "path".into(),
+                    self.path.to_string_lossy().to_string().into(),
+                ),
             ],
         };
         let src = self.context.commit.id;

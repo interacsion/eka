@@ -87,6 +87,9 @@ where
         let root = src.calculate_root()?;
         Ok(AtomId { root, id })
     }
+    pub fn root(&self) -> &R {
+        &self.root
+    }
 }
 
 impl Id {

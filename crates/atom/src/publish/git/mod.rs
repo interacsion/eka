@@ -3,8 +3,9 @@ mod r#impl;
 use super::{error::GitError, PublishOutcome, Record};
 use crate::{Atom, AtomId};
 
-use gix::{Commit, ObjectId, Repository, Tree};
-use std::cell::RefCell;
+use gix::Commit;
+use gix::{ObjectId, Repository, Tree};
+use std::{cell::RefCell, ops::Deref};
 use tokio::task::JoinSet;
 
 pub type GitAtomId = AtomId<Root>;
@@ -29,6 +30,7 @@ pub struct PublishGitContext<'a> {
 
 struct AtomContext<'a> {
     atom: &'a Atom,
+    id: &'a GitAtomId,
     path: &'a Path,
     context: &'a PublishGitContext<'a>,
     /// the git ref prefix pointing to this atom
@@ -223,16 +225,24 @@ pub struct Root(ObjectId);
 impl<'a> CalculateRoot<Root> for Commit<'a> {
     type Error = GitError;
     fn calculate_root(&self) -> GitResult<Root> {
-        use gix::traverse::commit::simple::Sorting;
-        let walk = self
+        use gix::traverse::commit::simple::{CommitTimeOrder, Sorting};
+        // FIXME: we rely on a custom crate patch to search the commit graph
+        // with a bias for older commits. The default gix behavior is the opposite
+        // starting with bias for newer commits.
+        //
+        // it is based on the more general concept of an OldestFirst traversal
+        // introduce by @nrdxp upstream: https://github.com/Byron/gitoxide/pull/1610
+        //
+        // However, that work tracks main and the goal of this patch is to remain
+        // as minimal as possible on top of a release tag, for easier maintenance
+        // assuming it may take a while to merge upstream.
+        let mut walk = self
             .ancestors()
             .use_commit_graph(true)
-            .sorting(Sorting::ByCommitTimeNewestFirst)
+            .sorting(Sorting::ByCommitTime(CommitTimeOrder::OldestFirst))
             .all()?;
 
-        let commits: Vec<_> = walk.collect::<Result<_, _>>()?;
-
-        while let Some(info) = commits.iter().next_back() {
+        while let Some(Ok(info)) = walk.next() {
             if info.parent_ids.is_empty() {
                 return Ok(Root(info.id));
             }
@@ -244,12 +254,21 @@ impl<'a> CalculateRoot<Root> for Commit<'a> {
 
 impl AsRef<[u8]> for Root {
     fn as_ref(&self) -> &[u8] {
-        self.0.as_bytes()
+        self.as_bytes()
     }
 }
 
-const ATOM_FORMAT_VERSION: &str = "1";
+impl Deref for Root {
+    type Target = ObjectId;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// The current version of the atom ref format
+const ATOM_FORMAT_VERSION: &str = "v1";
 const EMPTY: &str = "";
+/// the namespace under refs to publish atoms
 const ATOM_REF_TOP_LEVEL: &str = "atoms";
 const ATOM_TIP_REF: &str = "tip";
 const ATOM_SPEC_REF: &str = "spec";

@@ -8,10 +8,10 @@ addr              = "^0.15"
 base64            = "^0.22"
 blake3            = "^1.5"
 nom               = "^7"
+path-clean        = "^1"
 unic-ucd-category = "^0.9"
 
 lazy_static.workspace = true
-path-clean.workspace  = true
 semver.workspace      = true
 serde.workspace       = true
 thiserror.workspace   = true
