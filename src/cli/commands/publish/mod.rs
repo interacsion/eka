@@ -1,16 +1,13 @@
 #[cfg(feature = "git")]
 mod git;
 
-use crate::cli::{
-    logging::{self},
-    store::Store,
-};
+use crate::cli::store::Store;
 
 use atom::publish::error::{GitError, PublishError};
 use clap::Parser;
 use std::path::PathBuf;
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
 pub(in super::super) struct PublishArgs {
     /// Publish all the atoms in and under the current working directory
@@ -24,7 +21,7 @@ pub(in super::super) struct PublishArgs {
     store: StoreArgs,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 struct StoreArgs {
     #[command(flatten)]
     #[cfg(feature = "git")]
@@ -48,18 +45,26 @@ pub(super) async fn run(store: Store, args: PublishArgs) -> Result<(), PublishEr
                         tracing::info!(atom.id = %atom.id().id(),  "Atom successfully published")
                     }
                     Ok(Skipped(id)) => {
-                        tracing::warn!(atom.id = %id, "Skipping existing atom")
+                        tracing::info!(atom.id = %id, "Skipping existing atom")
                     }
                     Err(e) => errors.push(e),
                 }
             }
 
             for err in &errors {
-                tracing::error!(%err);
+                match err {
+                    GitError::Invalid(e, path) => {
+                        tracing::warn!(message = %err, path = %path.display(), message = format!("\n{}", e))
+                    }
+                    GitError::NotAFile(path) => {
+                        tracing::warn!(message = %err, path = %path.display())
+                    }
+                    _ => tracing::warn!(message = %err),
+                }
             }
 
             if !errors.is_empty() {
-                return Err(logging::log_error(PublishError::Git(GitError::Failed)));
+                return Err(PublishError::Git(GitError::Failed));
             }
         }
     }

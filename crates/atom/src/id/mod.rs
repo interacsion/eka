@@ -18,8 +18,8 @@ pub struct Id(String);
 pub enum IdError {
     #[error("An atom id cannot be empty")]
     Empty,
-    #[error("An atom id cannot start with a number, apostrophe, dash or underscore")]
-    InvalidStart,
+    #[error("An atom id cannot start with: '{0}'")]
+    InvalidStart(char),
     #[error("The atom id contains invalid characters: '{0}'")]
     InvalidCharacters(String),
 }
@@ -36,7 +36,7 @@ pub trait CalculateRoot<R> {
     fn calculate_root(&self) -> Result<R, Self::Error>;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AtomId<R> {
     root: R,
     id: Id,
@@ -46,6 +46,16 @@ pub struct AtomId<R> {
 pub struct AtomHash<'id, T> {
     hash: [u8; 32],
     id: &'id AtomId<T>,
+}
+
+impl<R> Serialize for AtomId<R> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Serialize only the `id` field as a string
+        self.id.serialize(serializer)
+    }
 }
 
 impl<T> Deref for AtomHash<'_, T> {
@@ -95,7 +105,7 @@ where
 impl Id {
     fn validate_start(c: char) -> Result<(), IdError> {
         if Id::is_invalid_start(c) {
-            return Err(IdError::InvalidStart);
+            return Err(IdError::InvalidStart(c));
         }
         Ok(())
     }

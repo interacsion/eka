@@ -8,9 +8,9 @@ fn empty() {
 
 #[test]
 fn invalid_start() {
-    let assert = |c| {
-        let res = Id::try_from(c);
-        assert!(res == Err(IdError::InvalidStart));
+    let assert = |s: &str| {
+        let res = Id::try_from(s);
+        assert!(res == Err(IdError::InvalidStart(s.chars().next().unwrap())));
     };
     for a in ["9atom", "'atom", "_atom", "-atom", "%atom"] {
         assert(a)
@@ -84,7 +84,7 @@ fn invalid_unicode_ids() {
 fn specific_unicode_errors() {
     assert_eq!(
         Id::try_from("123αβγ"),
-        Err(IdError::InvalidStart),
+        Err(IdError::InvalidStart('1')),
         "Should fail for starting with a number"
     );
 
@@ -123,7 +123,7 @@ fn edge_cases() {
 
     assert_eq!(
         Id::try_from("\u{200B}"),
-        Err(IdError::InvalidStart),
+        Err(IdError::InvalidStart('\u{200B}')),
         "Zero-width space should be invalid start"
     );
 

@@ -35,14 +35,14 @@ pub enum GitError {
     #[error(transparent)]
     JoinFailed(#[from] tokio::task::JoinError),
     #[error("Ignoring invalid atom manifest")]
-    Invalid(#[source] crate::manifest::AtomError),
+    Invalid(#[source] crate::manifest::AtomError, Box<PathBuf>),
     #[error("The given path does not point to an atom")]
     NotAFile(PathBuf),
     #[error("Repository does not have a working directory")]
     NoWorkDir,
     #[error("Failed to sync some atoms to the remote")]
     SomePushFailed,
-    #[error("Failed to published any of the specified atoms")]
+    #[error("Failed to published some of the specified atoms")]
     Failed,
     #[error("Failed to calculate the repositories root commit")]
     RootNotFound,

@@ -15,7 +15,7 @@ pub type GitResult<R> = Result<R, GitError>;
 
 #[derive(Debug)]
 /// Holds the shared context needed for publishing atoms
-pub struct PublishGitContext<'a> {
+pub struct GitContext<'a> {
     /// Reference to the repository we are publish from
     repo: &'a Repository,
     /// The repository tree object for the given commit
@@ -32,9 +32,8 @@ struct AtomContext<'a> {
     atom: &'a Atom,
     id: &'a GitAtomId,
     path: &'a Path,
-    context: &'a PublishGitContext<'a>,
-    /// the git ref prefix pointing to this atom
-    prefix: String,
+    ref_prefix: String,
+    git: &'a GitContext<'a>,
 }
 
 trait ExtendRepo {
@@ -55,7 +54,11 @@ trait ExtendRepo {
     fn normalize(&self, path: &Path) -> Result<PathBuf, GitError>;
 }
 
-struct FoundAtom<'a>(Atom, Entry<'a>);
+struct FoundAtom<'a> {
+    atom: Atom,
+    id: GitAtomId,
+    entry: Entry<'a>,
+}
 
 use gix::diff::object::Commit as AtomCommit;
 use gix::object::tree::Entry;
@@ -77,6 +80,17 @@ struct AtomTreeIds {
     spec: ObjectId,
     /// the object id of the tree representing the optional atom directory, if present
     dir: Option<ObjectId>,
+}
+
+enum RefKind {
+    Spec,
+    Tip,
+    Src,
+}
+
+struct AtomRef<'a> {
+    prefix: &'a str,
+    kind: RefKind,
 }
 
 use gix::Reference;
@@ -112,8 +126,37 @@ impl GitContent {
 
 use super::Publish;
 
-impl<'a> Publish<Root> for PublishGitContext<'a> {
+impl<'a> Publish<Root> for GitContext<'a> {
     type Error = GitError;
+
+    /// Publishes atoms.
+    ///
+    /// This function processes a collection of paths, each representing an atom to be published. The publishing
+    /// process includes path normalization, existence checks, and actual publishing attempts.
+    ///
+    /// # Path Normalization
+    /// - First attempts to interpret each path as relative to the caller's current location inside the repository.
+    /// - If normalization fails (e.g., in a bare repository), falls back to treating the path as already relative to the repo root.
+    /// - The normalized path is used to search the Git history, not the file system.
+    ///
+    /// # Publishing Process
+    /// For each path:
+    /// 1. Normalizes the path (as described above).
+    /// 2. Checks if the atom already exists in the repository.
+    ///    - If it exists, the atom is skipped, and a log message is generated.
+    /// 3. Attempts to publish the atom.
+    ///    - If successful, the atom is added to the repository.
+    ///    - If any error occurs during publishing, the atom is skipped, and an error is logged.
+    ///
+    /// # Error Handling
+    /// - The function aims to process all provided paths, even if some fail.
+    /// - Errors and skipped atoms are collected as results but do not halt the overall process.
+    /// - The function continues until all the atoms have been processed.
+    ///
+    /// # Return Value
+    /// Returns a vector of results types (`Vec<Result<PublishOutcome<T>, Self::Error>>`), where the
+    /// outter result represents whether an atom has failed, and the inner result determines whether an
+    /// atom was safely skipped, e.g. because it already exists..
     fn publish<C>(&self, paths: C) -> Vec<GitResult<GitOutcome>>
     where
         C: IntoIterator<Item = PathBuf>,
@@ -132,7 +175,20 @@ impl<'a> Publish<Root> for PublishGitContext<'a> {
     }
 }
 
-impl<'a> PublishGitContext<'a> {
+impl<'a> AtomContext<'a> {
+    fn set(atom: &'a Atom, id: &'a GitAtomId, path: &'a Path, git: &'a GitContext) -> Self {
+        let prefix = format!("{}/{}/{}", ATOM_REF_TOP_LEVEL, id, atom.version);
+        Self {
+            atom,
+            id,
+            path,
+            ref_prefix: prefix,
+            git,
+        }
+    }
+}
+
+impl<'a> GitContext<'a> {
     pub async fn set(repo: &'a Repository, remote_str: &'a str, refspec: &str) -> GitResult<Self> {
         let remote = async { repo.find_remote(remote_str) };
 

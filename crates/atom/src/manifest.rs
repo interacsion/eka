@@ -24,7 +24,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    /// Get the Atom object from a toml manifest
+    /// Get the Atom struct from a toml manifest
     pub fn get_atom(content: &str) -> AtomResult<Atom> {
         let doc = content.parse::<DocumentMut>()?;
 

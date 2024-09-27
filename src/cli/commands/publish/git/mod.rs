@@ -2,7 +2,7 @@ use super::PublishArgs;
 
 use atom::publish::{
     error::GitError,
-    git::{GitOutcome, GitResult, PublishGitContext},
+    git::{GitContext, GitOutcome, GitResult},
     Publish,
 };
 use clap::Parser;
@@ -40,8 +40,9 @@ pub(super) async fn run(
 
     let GitArgs { remote, spec } = args.store.git;
 
-    let context = PublishGitContext::set(&repo, &remote, &spec).await?;
+    let context = GitContext::set(&repo, &remote, &spec).await?;
 
+    let mut errors = Vec::with_capacity(args.path.len());
     let atoms = if args.recursive {
         todo!();
     } else {
@@ -50,7 +51,6 @@ pub(super) async fn run(
         context.publish(paths)
     };
 
-    let mut errors = Vec::new();
     context.await_pushes(&mut errors).await;
 
     Ok((atoms, errors))

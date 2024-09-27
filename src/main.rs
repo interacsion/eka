@@ -1,3 +1,5 @@
+mod ansi;
+
 use clap::Parser;
 use eka::cli::{self, Args};
 use std::process::ExitCode;
@@ -9,7 +11,8 @@ async fn main() -> ExitCode {
 
     cli::init_logger(log);
 
-    if (cli::run(args).await).is_err() {
+    if let Err(e) = cli::run(args).await {
+        tracing::error!("{}FATAL{} {}", ansi::MAGENTA, ansi::RESET, e);
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS

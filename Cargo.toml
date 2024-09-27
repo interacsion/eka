@@ -54,4 +54,4 @@ default = ["git"]
 git     = ["gix"]
 
 [patch.crates-io]
-gix = {git = "https://github.com/nrdxp/gitoxide", tag = "gix-v0.66.0-eka" }
+gix = { git = "https://github.com/nrdxp/gitoxide", tag = "gix-v0.66.0-eka" }

@@ -49,7 +49,7 @@ pub(super) trait LogValue {
     fn as_json(&self) -> String
     where
         Self: Serialize;
-    fn trim_whitespace(&self) -> String
+    fn _trim_whitespace(&self) -> String
     where
         Self: Display;
     fn _log_err<T, E>(self) -> Result<T, E>
@@ -65,7 +65,7 @@ impl<T> LogValue for T {
     {
         serde_json::to_string(self).unwrap_or_else(|_| "null".to_string())
     }
-    fn trim_whitespace(&self) -> String
+    fn _trim_whitespace(&self) -> String
     where
         Self: Display,
     {
@@ -76,14 +76,14 @@ impl<T> LogValue for T {
         Self: Sized + Into<Result<P, E>>,
         E: Display + error::Error + LogValue,
     {
-        self.into().map_err(log_error)
+        self.into().map_err(_log_error)
     }
 }
 
-pub(super) fn log_error<E>(e: E) -> E
+pub(super) fn _log_error<E>(e: E) -> E
 where
     E: Display + error::Error + LogValue,
 {
-    tracing::error!(message = %e.trim_whitespace());
+    tracing::error!(message = %e._trim_whitespace());
     e
 }
