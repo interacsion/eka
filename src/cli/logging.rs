@@ -8,6 +8,7 @@ use std::str::FromStr;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use tracing_subscriber::fmt;
+use tracing_subscriber::Layer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn get_log_level(args: LogArgs) -> LevelFilter {
@@ -29,13 +30,29 @@ fn get_log_level(args: LogArgs) -> LevelFilter {
     }
 }
 
-pub fn init_logger(args: LogArgs) {
+use tracing_appender::non_blocking::WorkerGuard;
+pub fn init_global_subscriber(args: LogArgs) -> WorkerGuard {
     let log_level = get_log_level(args);
 
     let env_filter = EnvFilter::from_default_env().add_directive(log_level.into());
 
+    let (non_blocking, guard) = tracing_appender::non_blocking(std::io::stderr());
+
+    use std::io::IsTerminal;
+    let fmt = if std::io::stdout().is_terminal() {
+        fmt::layer()
+            .without_time()
+            .with_writer(non_blocking)
+            .boxed()
+    } else {
+        fmt::layer()
+            .with_ansi(false)
+            .with_writer(non_blocking)
+            .boxed()
+    };
+
     tracing_subscriber::registry()
-        .with(fmt::layer().with_writer(std::io::stderr))
+        .with(fmt)
         .with(env_filter)
         .with(ErrorLayer::default())
         .init();
@@ -43,6 +60,8 @@ pub fn init_logger(args: LogArgs) {
     if log_level == LevelFilter::TRACE {
         let _ = Args::parse();
     }
+
+    guard
 }
 
 pub(super) trait LogValue {

@@ -3,7 +3,7 @@ mod logging;
 mod store;
 
 pub use commands::run;
-pub use logging::init_logger;
+pub use logging::init_global_subscriber;
 
 use clap::Parser;
 
