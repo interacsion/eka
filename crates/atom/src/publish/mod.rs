@@ -4,7 +4,7 @@ pub mod git;
 use crate::{id::Id, AtomId};
 
 use git::GitContent;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct Record<R> {
     id: AtomId<R>,
@@ -41,6 +41,8 @@ pub trait Publish<T> {
     fn publish<C>(&self, paths: C) -> Vec<Result<PublishOutcome<T>, Self::Error>>
     where
         C: IntoIterator<Item = PathBuf>;
+
+    fn publish_atom<P: AsRef<Path>>(&self, path: P) -> Result<PublishOutcome<T>, Self::Error>;
 }
 
 impl<R> Record<R> {

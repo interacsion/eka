@@ -1,8 +1,8 @@
 use super::{
-    AtomContext, AtomRef, GitContext, GitRecord, GitResult, RefKind, ATOM_FORMAT_VERSION,
-    ATOM_SPEC_REF, ATOM_SRC_REF, ATOM_TIP_REF, EMPTY,
+    AtomContext, AtomRef, GitContext, GitResult, RefKind, ATOM_FORMAT_VERSION, ATOM_SPEC_REF,
+    ATOM_SRC_REF, ATOM_TIP_REF, EMPTY,
 };
-use crate::{publish::error::GitError, publish::Content, Atom, AtomId, Manifest};
+use crate::{publish::error::GitError, Atom, AtomId, Manifest};
 
 use gix::{
     actor::Signature,
@@ -17,35 +17,7 @@ use std::{
     path::Path,
 };
 
-use crate::id::Id;
 impl<'a> GitContext<'a> {
-    pub fn publish_atom(&self, path: &Path) -> GitResult<Result<GitRecord, Id>> {
-        use Err as Skipped;
-        use Ok as Published;
-
-        let dir = path.with_extension("");
-        let FoundAtom { atom, id, entry } = self.find_and_verify_atom(path)?;
-
-        let atom = AtomContext::set(&atom, &id, &dir, self);
-
-        let atom_dir_entry = atom.maybe_dir();
-
-        let tree_ids = match atom.write_atom_trees(&entry, atom_dir_entry)? {
-            Ok(t) => t,
-            Skipped(id) => return Ok(Skipped(id)),
-        };
-
-        let refs = atom
-            .write_atom_commits(tree_ids)?
-            .write_refs(&atom)?
-            .push(self);
-
-        Ok(Published(GitRecord {
-            id,
-            content: Content::Git(refs),
-        }))
-    }
-
     /// Method to verify the manifest of an entry
     fn verify_manifest(&self, entry: &Entry, path: &Path) -> GitResult<Atom> {
         if !entry.mode().is_blob() {
@@ -86,7 +58,7 @@ impl<'a> GitContext<'a> {
         Ok(self.tree.clone().peel_to_entry_by_path(path)?)
     }
 
-    fn find_and_verify_atom(&self, path: &Path) -> GitResult<FoundAtom> {
+    pub(super) fn find_and_verify_atom(&self, path: &Path) -> GitResult<FoundAtom> {
         let entry = self
             .tree_search(path)?
             .ok_or(GitError::NotAFile(path.into()))?;
@@ -123,7 +95,7 @@ impl<'a> AtomContext<'a> {
         AtomRef::new(kind, &self.ref_prefix)
     }
 
-    fn maybe_dir(&self) -> Option<Entry> {
+    pub(super) fn maybe_dir(&self) -> Option<Entry> {
         match self.git.tree_search(self.path).ok()? {
             Some(entry) => entry.mode().is_tree().then_some(entry),
             _ => None,
@@ -140,7 +112,7 @@ impl<'a> AtomContext<'a> {
         }
     }
     /// Method to write the atom tree object
-    fn write_atom_trees(
+    pub(super) fn write_atom_trees(
         &self,
         atom: &Entry,
         dir: Option<Entry>,
@@ -173,7 +145,7 @@ impl<'a> AtomContext<'a> {
     }
 
     /// Method to write atom commits
-    fn write_atom_commits(
+    pub(super) fn write_atom_commits(
         &self,
         AtomTreeIds { spec, dir }: AtomTreeIds,
     ) -> GitResult<CommittedAtom> {
@@ -245,7 +217,7 @@ impl<'a> CommittedAtom {
         )?)
     }
     /// Method to write references for the committed atom
-    fn write_refs(&'a self, atom: &'a AtomContext) -> GitResult<AtomReferences> {
+    pub(super) fn write_refs(&'a self, atom: &'a AtomContext) -> GitResult<AtomReferences> {
         let Self { commit, tip, src } = self;
 
         Ok(if let Some(spec) = commit.parents.first() {
@@ -271,9 +243,9 @@ impl<'a> AtomReferences<'a> {
     ///
     /// Currently the implementation just calls the `git` binary.
     /// Once `gix` is further along we can use it directly.
-    fn push(self, git: &'a GitContext) -> GitContent {
-        let remote = git.remote_str.to_owned();
-        let mut tasks = git.push_tasks.borrow_mut();
+    pub(super) fn push(self, atom: &'a AtomContext) -> GitContent {
+        let remote = atom.git.remote_str.to_owned();
+        let mut tasks = atom.git.push_tasks.borrow_mut();
 
         for r in [&self.tip, &self.spec, &self.src] {
             let r = r.name().as_bstr().to_string();
@@ -290,6 +262,8 @@ impl<'a> AtomReferences<'a> {
             spec: self.spec.detach(),
             tip: self.tip.detach(),
             src: self.src.detach(),
+            path: atom.path.to_path_buf(),
+            ref_prefix: atom.ref_prefix.clone(),
         }
     }
 }

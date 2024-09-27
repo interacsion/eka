@@ -1,6 +1,6 @@
 mod r#impl;
 
-use super::{error::GitError, PublishOutcome, Record};
+use super::{error::GitError, Content, PublishOutcome, Record};
 use crate::{Atom, AtomId};
 
 use gix::Commit;
@@ -110,6 +110,8 @@ pub struct GitContent {
     spec: gix::refs::Reference,
     tip: gix::refs::Reference,
     src: gix::refs::Reference,
+    path: PathBuf,
+    ref_prefix: String,
 }
 
 impl GitContent {
@@ -121,6 +123,12 @@ impl GitContent {
     }
     pub fn src(&self) -> &gix::refs::Reference {
         &self.src
+    }
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+    pub fn ref_prefix(&self) -> &String {
+        &self.ref_prefix
     }
 }
 
@@ -172,6 +180,34 @@ impl<'a> Publish<Root> for GitContext<'a> {
                 self.publish_atom(&path)
             })
             .collect()
+    }
+
+    fn publish_atom<P: AsRef<Path>>(&self, path: P) -> GitResult<GitOutcome> {
+        use Err as Skipped;
+        use Ok as Published;
+
+        let blueprint = path.as_ref();
+        let dir = blueprint.with_extension("");
+
+        let FoundAtom { atom, id, entry } = self.find_and_verify_atom(blueprint)?;
+
+        let atom = AtomContext::set(&atom, &id, &dir, self);
+        let atom_dir_entry = atom.maybe_dir();
+
+        let tree_ids = match atom.write_atom_trees(&entry, atom_dir_entry)? {
+            Ok(t) => t,
+            Skipped(id) => return Ok(Skipped(id)),
+        };
+
+        let refs = atom
+            .write_atom_commits(tree_ids)?
+            .write_refs(&atom)?
+            .push(&atom);
+
+        Ok(Published(GitRecord {
+            id,
+            content: Content::Git(refs),
+        }))
     }
 }
 
