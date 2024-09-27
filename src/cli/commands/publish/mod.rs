@@ -3,7 +3,10 @@ mod git;
 
 use crate::cli::store::Store;
 
-use atom::publish::error::{GitError, PublishError};
+use atom::publish::{
+    error::{GitError, PublishError},
+    Content,
+};
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -40,9 +43,13 @@ pub(super) async fn run(store: Store, args: PublishArgs) -> Result<(), PublishEr
             for res in results {
                 match res {
                     Ok(Published(atom)) => {
-                        // TODO: flesh out logging
-                        // let Content::Git(content) = atom.content();
-                        tracing::info!(atom.id = %atom.id().id(),  "Atom successfully published")
+                        let Content::Git(content) = atom.content();
+                        tracing::info!(
+                            atom.id = %atom.id().id(),
+                            path = %content.path().display(),
+                            "Atom successfully published"
+                        );
+                        tracing::debug!("published under: {}", content.ref_prefix());
                     }
                     Ok(Skipped(id)) => {
                         tracing::info!(atom.id = %id, "Skipping existing atom")
