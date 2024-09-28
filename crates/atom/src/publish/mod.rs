@@ -11,6 +11,13 @@ pub struct Record<R> {
     content: Content,
 }
 
+#[derive(Default)]
+pub struct Stats {
+    pub published: u32,
+    pub skipped: u32,
+    pub failed: u32,
+}
+
 /// A Result is used over an Option here mainly so we can report which
 /// atom was skipped, but it does not represent a true failure condition
 type MaybeSkipped<T> = Result<T, Id>;

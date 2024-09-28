@@ -41,7 +41,7 @@ semver             = { version = "^1", features = ["serde"] }
 serde              = { version = "^1", features = ["derive"] }
 tokio              = { version = "^1", features = ["full"] }
 toml_edit          = { version = "^0.22", features = ["serde"] }
-tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "^0.3", features = ["env-filter", "json"] }
 url                = { version = "^2", features = ["serde"] }
 
 gix = { version = "^0.66", default-features = false, features = [

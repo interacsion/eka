@@ -4,6 +4,7 @@ mod git;
 use crate::cli::store::Store;
 
 use atom::publish::{
+    self,
     error::{GitError, PublishError},
     Content,
 };
@@ -31,10 +32,11 @@ struct StoreArgs {
     git: git::GitArgs,
 }
 
-pub(super) async fn run(store: Store, args: PublishArgs) -> Result<(), PublishError> {
-    // use atom::publish::Content;
+use publish::Stats;
+pub(super) async fn run(store: Store, args: PublishArgs) -> Result<Stats, PublishError> {
     use Err as Skipped;
     use Ok as Published;
+    let mut stats = publish::Stats::default();
     match store {
         #[cfg(feature = "git")]
         Store::Git(repo) => {
@@ -43,6 +45,7 @@ pub(super) async fn run(store: Store, args: PublishArgs) -> Result<(), PublishEr
             for res in results {
                 match res {
                     Ok(Published(atom)) => {
+                        stats.published += 1;
                         let Content::Git(content) = atom.content();
                         tracing::info!(
                             atom.id = %atom.id().id(),
@@ -52,9 +55,13 @@ pub(super) async fn run(store: Store, args: PublishArgs) -> Result<(), PublishEr
                         tracing::debug!("published under: {}", content.ref_prefix());
                     }
                     Ok(Skipped(id)) => {
+                        stats.skipped += 1;
                         tracing::info!(atom.id = %id, "Skipping existing atom")
                     }
-                    Err(e) => errors.push(e),
+                    Err(e) => {
+                        stats.failed += 1;
+                        errors.push(e)
+                    }
                 }
             }
 
@@ -70,10 +77,17 @@ pub(super) async fn run(store: Store, args: PublishArgs) -> Result<(), PublishEr
                 }
             }
 
+            tracing::info!(
+                stats.published,
+                stats.skipped,
+                stats.failed,
+                "Finished publishing atoms"
+            );
+
             if !errors.is_empty() {
                 return Err(PublishError::Git(GitError::Failed));
             }
         }
     }
-    Ok(())
+    Ok(stats)
 }

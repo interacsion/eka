@@ -25,7 +25,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     match args.command {
         Commands::Publish(args) => {
             let store = store::detect()?;
-            publish::run(store, args).await?
+            publish::run(store, args).await?;
         }
     }
     Ok(())

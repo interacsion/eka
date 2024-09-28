@@ -31,22 +31,26 @@ fn get_log_level(args: LogArgs) -> LevelFilter {
 }
 
 use tracing_appender::non_blocking::WorkerGuard;
-pub fn init_global_subscriber(args: LogArgs) -> WorkerGuard {
+pub fn init_global_subscriber(args: LogArgs) -> (WorkerGuard, bool) {
     let log_level = get_log_level(args);
 
     let env_filter = EnvFilter::from_default_env().add_directive(log_level.into());
 
     let (non_blocking, guard) = tracing_appender::non_blocking(std::io::stderr());
 
+    let mut ansi: bool = true;
+
     use std::io::IsTerminal;
-    let fmt = if std::io::stdout().is_terminal() {
+    let fmt = if std::io::stderr().is_terminal() {
         fmt::layer()
             .without_time()
             .with_writer(non_blocking)
             .boxed()
     } else {
+        ansi = false;
         fmt::layer()
-            .with_ansi(false)
+            .with_ansi(ansi)
+            .json()
             .with_writer(non_blocking)
             .boxed()
     };
@@ -61,7 +65,7 @@ pub fn init_global_subscriber(args: LogArgs) -> WorkerGuard {
         let _ = Args::parse();
     }
 
-    guard
+    (guard, ansi)
 }
 
 pub(super) trait LogValue {
