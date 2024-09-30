@@ -46,4 +46,23 @@ pub enum GitError {
     Failed,
     #[error("Failed to calculate the repositories root commit")]
     RootNotFound,
+    #[error("Failed to find any atoms under the current directory")]
+    NotFound,
+    #[error("Duplicate atoms detected in the given revision, refusing to publish")]
+    Duplicates,
+}
+
+impl GitError {
+    pub fn warn(&self) {
+        match self {
+            GitError::Invalid(e, path) => {
+                tracing::warn!(message = %self, path = %path.display(), message = format!("\n{}", e))
+            }
+            GitError::NotAFile(path) => {
+                tracing::warn!(message = %self, path = %path.display())
+            }
+            GitError::Failed => (),
+            _ => tracing::warn!(message = %self),
+        }
+    }
 }

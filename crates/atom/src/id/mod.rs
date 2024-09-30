@@ -29,7 +29,7 @@ pub trait ComputeHash<'id, T>: Borrow<[u8]> {
 }
 
 /// This trait must be implemented to construct new instances of an
-/// an AtomId. It tells the "new" constructor how to calculate the
+/// an AtomId. It tells the "compute" constructor how to calculate the
 /// value for the `root` field.
 pub trait CalculateRoot<R> {
     type Error;

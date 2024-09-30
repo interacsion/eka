@@ -9,9 +9,9 @@ use std::{cell::RefCell, ops::Deref};
 use tokio::task::JoinSet;
 
 pub type GitAtomId = AtomId<Root>;
-type GitRecord = Record<Root>;
 pub type GitOutcome = PublishOutcome<Root>;
-pub type GitResult<R> = Result<R, GitError>;
+pub type GitResult<T> = Result<T, GitError>;
+type GitRecord = Record<Root>;
 
 #[derive(Debug)]
 /// Holds the shared context needed for publishing atoms
@@ -36,7 +36,7 @@ struct AtomContext<'a> {
     git: &'a GitContext<'a>,
 }
 
-trait ExtendRepo {
+pub trait ExtendRepo {
     /// Normalizes a given path to be relative to the repository root.
     ///
     /// This function takes a path (relative or absolute) and attempts to normalize it
@@ -114,6 +114,85 @@ pub struct GitContent {
     ref_prefix: String,
 }
 
+use super::{Builder, ValidAtoms};
+
+pub struct GitPublisher<'a> {
+    source: &'a Repository,
+    remote: &'a str,
+    spec: &'a str,
+}
+
+impl<'a> GitPublisher<'a> {
+    pub fn new(source: &'a Repository, remote: &'a str, spec: &'a str) -> Self {
+        GitPublisher {
+            source,
+            remote,
+            spec,
+        }
+    }
+}
+
+fn calculate_capacity(record_count: usize) -> usize {
+    let log_count = (record_count as f64).log2();
+    let base_multiplier = 20.0;
+    let scaling_factor = (log_count - 10.0).max(0.0).powf(2.0);
+    let multiplier = base_multiplier + scaling_factor * 10.0;
+    (log_count * multiplier).ceil() as usize
+}
+
+impl<'a> Builder<'a, Root, Repository> for GitPublisher<'a> {
+    type Error = GitError;
+    type Publisher = GitContext<'a>;
+
+    fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error> {
+        let publisher = GitContext::set(self.source, self.remote, self.spec)?;
+        let atoms = GitPublisher::validate(&publisher)?;
+        Ok((atoms, publisher))
+    }
+
+    fn validate(publisher: &Self::Publisher) -> Result<ValidAtoms, Self::Error> {
+        use crate::publish::ATOM_EXT;
+        use gix::traverse::tree::Recorder;
+        let mut record = Recorder::default();
+
+        publisher
+            .tree()
+            .traverse()
+            .breadthfirst(&mut record)
+            .map_err(|_| GitError::NotFound)?;
+
+        let cap = calculate_capacity(record.records.len());
+        let mut atoms: HashMap<Id, PathBuf> = HashMap::with_capacity(cap);
+
+        for entry in record.records.into_iter() {
+            if entry.mode.is_blob() && entry.filepath.ends_with(format!(".{}", ATOM_EXT).as_ref()) {
+                if let Ok(obj) = publisher.repo.find_object(entry.oid) {
+                    let path = PathBuf::from(entry.filepath.to_string());
+                    match publisher.verify_manifest(&obj, &path) {
+                        Ok(atom) => {
+                            if let Some(duplicate) = atoms.get(&atom.id) {
+                                tracing::warn!(
+                                    message = "Two atoms share the same ID",
+                                    duplicate.id = %atom.id,
+                                    fst = %path.display(),
+                                    snd = %duplicate.display(),
+                                );
+                                return Err(GitError::Duplicates);
+                            }
+                            atoms.insert(atom.id, path);
+                        }
+                        Err(e) => e.warn(),
+                    }
+                }
+            }
+        }
+
+        tracing::trace!(repo.atoms.valid.count = atoms.len());
+
+        Ok(atoms)
+    }
+}
+
 impl GitContent {
     pub fn spec(&self) -> &gix::refs::Reference {
         &self.spec
@@ -133,6 +212,8 @@ impl GitContent {
 }
 
 use super::Publish;
+use crate::id::Id;
+use std::collections::HashMap;
 
 impl<'a> Publish<Root> for GitContext<'a> {
     type Error = GitError;
@@ -172,7 +253,7 @@ impl<'a> Publish<Root> for GitContext<'a> {
         paths
             .into_iter()
             .map(|path| {
-                let path = match self.repo.normalize(&path.with_extension("atom")) {
+                let path = match self.repo.normalize(&path.with_extension(super::ATOM_EXT)) {
                     Ok(path) => path,
                     Err(GitError::NoWorkDir) => path,
                     Err(e) => return Err(e),
@@ -213,7 +294,7 @@ impl<'a> Publish<Root> for GitContext<'a> {
 
 impl<'a> AtomContext<'a> {
     fn set(atom: &'a Atom, id: &'a GitAtomId, path: &'a Path, git: &'a GitContext) -> Self {
-        let prefix = format!("{}/{}/{}", ATOM_REF_TOP_LEVEL, id, atom.version);
+        let prefix = format!("{}/{}/{}", super::ATOM_REF_TOP_LEVEL, id, atom.version);
         Self {
             atom,
             id,
@@ -225,14 +306,13 @@ impl<'a> AtomContext<'a> {
 }
 
 impl<'a> GitContext<'a> {
-    pub async fn set(repo: &'a Repository, remote_str: &'a str, refspec: &str) -> GitResult<Self> {
-        let remote = async { repo.find_remote(remote_str) };
-
-        let commit = async { repo.rev_parse_single(refspec).map(|s| repo.find_commit(s)) };
-
-        // print both errors before returning one
-        let (remote, commit) = tokio::join!(remote, commit);
-        let (_remote, commit) = (remote.map_err(Box::new)?, commit.map_err(Box::new)??);
+    fn set(repo: &'a Repository, remote_str: &'a str, refspec: &str) -> GitResult<Self> {
+        // short-circuit publishing if the passed remote doesn't exist
+        let _remote = repo.find_remote(remote_str).map_err(Box::new)?;
+        let commit = repo
+            .rev_parse_single(refspec)
+            .map(|s| repo.find_commit(s))
+            .map_err(Box::new)??;
 
         let tree = commit.tree()?;
 
@@ -267,6 +347,10 @@ impl<'a> GitContext<'a> {
                 }
             }
         }
+    }
+
+    pub fn tree(&self) -> Tree<'a> {
+        self.tree.clone()
     }
 }
 
@@ -356,12 +440,3 @@ impl Deref for Root {
         &self.0
     }
 }
-
-/// The current version of the atom ref format
-const ATOM_FORMAT_VERSION: &str = "v1";
-const EMPTY: &str = "";
-/// the namespace under refs to publish atoms
-const ATOM_REF_TOP_LEVEL: &str = "atoms";
-const ATOM_TIP_REF: &str = "tip";
-const ATOM_SPEC_REF: &str = "spec";
-const ATOM_SRC_REF: &str = "src";

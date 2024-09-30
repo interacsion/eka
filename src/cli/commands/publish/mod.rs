@@ -66,23 +66,10 @@ pub(super) async fn run(store: Store, args: PublishArgs) -> Result<Stats, Publis
             }
 
             for err in &errors {
-                match err {
-                    GitError::Invalid(e, path) => {
-                        tracing::warn!(message = %err, path = %path.display(), message = format!("\n{}", e))
-                    }
-                    GitError::NotAFile(path) => {
-                        tracing::warn!(message = %err, path = %path.display())
-                    }
-                    _ => tracing::warn!(message = %err),
-                }
+                err.warn()
             }
 
-            tracing::info!(
-                stats.published,
-                stats.skipped,
-                stats.failed,
-                "Finished publishing atoms"
-            );
+            tracing::info!(stats.published, stats.skipped, stats.failed);
 
             if !errors.is_empty() {
                 return Err(PublishError::Git(GitError::Failed));

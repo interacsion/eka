@@ -1,6 +1,6 @@
 use super::{
-    AtomContext, AtomRef, GitContext, GitResult, RefKind, ATOM_FORMAT_VERSION, ATOM_SPEC_REF,
-    ATOM_SRC_REF, ATOM_TIP_REF, EMPTY,
+    super::{ATOM_FORMAT_VERSION, ATOM_SPEC_REF, ATOM_SRC_REF, ATOM_TIP_REF, EMPTY},
+    AtomContext, AtomRef, GitContext, GitResult, RefKind,
 };
 use crate::{publish::error::GitError, Atom, AtomId, Manifest};
 
@@ -19,12 +19,8 @@ use std::{
 
 impl<'a> GitContext<'a> {
     /// Method to verify the manifest of an entry
-    fn verify_manifest(&self, entry: &Entry, path: &Path) -> GitResult<Atom> {
-        if !entry.mode().is_blob() {
-            return Err(GitError::NotAFile(path.into()));
-        }
-
-        let content = read_blob(entry, |reader| {
+    pub(super) fn verify_manifest(&self, obj: &Object, path: &Path) -> GitResult<Atom> {
+        let content = read_blob(obj, |reader| {
             let mut content = String::new();
             reader.read_to_string(&mut content)?;
             Ok(content)
@@ -54,7 +50,7 @@ impl<'a> GitContext<'a> {
     }
 
     /// Helper function to return an entry by path from the repo tree
-    fn tree_search(&self, path: &Path) -> GitResult<Option<Entry<'a>>> {
+    pub fn tree_search(&self, path: &Path) -> GitResult<Option<Entry<'a>>> {
         Ok(self.tree.clone().peel_to_entry_by_path(path)?)
     }
 
@@ -63,10 +59,15 @@ impl<'a> GitContext<'a> {
             .tree_search(path)?
             .ok_or(GitError::NotAFile(path.into()))?;
 
-        self.verify_manifest(&entry, path).and_then(|atom| {
-            let id = AtomId::compute(&self.commit, atom.id.clone())?;
-            Ok(FoundAtom { atom, id, entry })
-        })
+        if !entry.mode().is_blob() {
+            return Err(GitError::NotAFile(path.into()));
+        }
+
+        self.verify_manifest(&entry.object()?, path)
+            .and_then(|atom| {
+                let id = AtomId::compute(&self.commit, atom.id.clone())?;
+                Ok(FoundAtom { atom, id, entry })
+            })
     }
 }
 
@@ -268,13 +269,13 @@ impl<'a> AtomReferences<'a> {
     }
 }
 
+use gix::Object;
 /// Helper function to read a blob from an entry
-fn read_blob<F, R>(entry: &Entry, mut f: F) -> GitResult<R>
+fn read_blob<F, R>(obj: &Object, mut f: F) -> GitResult<R>
 where
     F: FnMut(&mut dyn Read) -> io::Result<R>,
 {
-    let object = entry.object()?;
-    let mut reader = object.data.as_slice();
+    let mut reader = obj.data.as_slice();
     Ok(f(&mut reader)?)
 }
 

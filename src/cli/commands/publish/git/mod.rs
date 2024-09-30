@@ -2,8 +2,7 @@ use super::PublishArgs;
 
 use atom::publish::{
     error::GitError,
-    git::{GitContext, GitOutcome, GitResult},
-    Publish,
+    git::{GitOutcome, GitResult},
 };
 use clap::Parser;
 use std::collections::HashSet;
@@ -36,22 +35,40 @@ pub(super) async fn run(
     repo: ThreadSafeRepository,
     args: PublishArgs,
 ) -> GitResult<(Vec<GitResult<GitOutcome>>, Vec<GitError>)> {
+    use atom::publish::{
+        git::{ExtendRepo, GitPublisher},
+        Builder, Publish,
+    };
+    use std::path::Path;
     let repo = repo.to_thread_local();
 
     let GitArgs { remote, spec } = args.store.git;
 
-    let context = GitContext::set(&repo, &remote, &spec).await?;
+    let (atoms, publisher) = GitPublisher::new(&repo, &remote, &spec).build()?;
 
     let mut errors = Vec::with_capacity(args.path.len());
-    let atoms = if args.recursive {
-        todo!();
+    let results = if args.recursive {
+        let paths: HashSet<_> = if !repo.is_bare() {
+            let cwd = repo.normalize(repo.current_dir())?;
+            atoms
+                .into_values()
+                .filter_map(|path| path.strip_prefix(&cwd).map(Path::to_path_buf).ok())
+                .collect()
+        } else {
+            atoms.into_values().collect()
+        };
+
+        if paths.is_empty() {
+            return Err(GitError::NotFound);
+        }
+        publisher.publish(paths)
     } else {
         // filter redundant paths
         let paths: HashSet<PathBuf> = args.path.into_iter().collect();
-        context.publish(paths)
+        publisher.publish(paths)
     };
 
-    context.await_pushes(&mut errors).await;
+    publisher.await_pushes(&mut errors).await;
 
-    Ok((atoms, errors))
+    Ok((results, errors))
 }
