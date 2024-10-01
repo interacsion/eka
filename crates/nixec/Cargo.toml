@@ -1,0 +1,9 @@
+[package]
+edition = "2021"
+name    = "nixec"
+version = "0.1.0"
+
+[dependencies]
+birdcage = "^0.8"
+
+thiserror.workspace = true
