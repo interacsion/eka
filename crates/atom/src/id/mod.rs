@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 use std::borrow::Borrow;
 use std::fmt;
