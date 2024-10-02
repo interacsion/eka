@@ -1,5 +1,5 @@
 use super::{
-    super::{ATOM_FORMAT_VERSION, ATOM_SPEC_REF, ATOM_SRC_REF, ATOM_TIP_REF, EMPTY},
+    super::{ATOM_FORMAT_VERSION, ATOM_MANIFEST, ATOM_ORIGIN, EMPTY_SIG},
     AtomContext, AtomRef, GitContext, GitResult, RefKind,
 };
 use crate::{publish::error::GitError, Atom, AtomId, Manifest};
@@ -71,9 +71,15 @@ impl<'a> GitContext<'a> {
     }
 }
 
+use semver::Version;
+
 impl<'a> AtomRef<'a> {
-    fn new(kind: RefKind, prefix: &'a str) -> Self {
-        AtomRef { prefix, kind }
+    fn new(kind: RefKind, prefix: &'a str, version: &'a Version) -> Self {
+        AtomRef {
+            prefix,
+            kind,
+            version,
+        }
     }
 }
 
@@ -82,9 +88,9 @@ use std::fmt;
 impl<'a> fmt::Display for AtomRef<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
-            RefKind::Spec => write!(f, "{}/{}", self.prefix, ATOM_SPEC_REF),
-            RefKind::Tip => write!(f, "{}/{}", self.prefix, ATOM_TIP_REF),
-            RefKind::Src => write!(f, "{}/{}", self.prefix, ATOM_SRC_REF),
+            RefKind::Manifest => write!(f, "{}/{}s/{}", self.prefix, ATOM_MANIFEST, self.version),
+            RefKind::Content => write!(f, "{}/{}", self.prefix, self.version),
+            RefKind::Source => write!(f, "{}/{}s/{}", self.prefix, ATOM_ORIGIN, self.version),
         }
     }
 }
@@ -93,7 +99,7 @@ use crate::publish::MaybeSkipped;
 
 impl<'a> AtomContext<'a> {
     fn refs(&self, kind: RefKind) -> AtomRef {
-        AtomRef::new(kind, &self.ref_prefix)
+        AtomRef::new(kind, &self.ref_prefix, &self.atom.version)
     }
 
     pub(super) fn maybe_dir(&self) -> Option<Entry> {
@@ -125,7 +131,7 @@ impl<'a> AtomContext<'a> {
 
         let spec_tree = atom_tree(&mut entries, atom);
 
-        let spec_exists = self.ref_exists(&spec_tree, self.refs(RefKind::Spec));
+        let spec_exists = self.ref_exists(&spec_tree, self.refs(RefKind::Manifest));
 
         if dir.is_none() && spec_exists {
             return Ok(Skipped(self.atom.id.clone()));
@@ -133,7 +139,7 @@ impl<'a> AtomContext<'a> {
 
         if let Some(entry) = dir {
             let dir_tree = atom_tree(&mut entries, &entry);
-            if self.ref_exists(&dir_tree, self.refs(RefKind::Tip)) && spec_exists {
+            if self.ref_exists(&dir_tree, self.refs(RefKind::Content)) && spec_exists {
                 return Ok(Skipped(self.atom.id.clone()));
             }
             let spec = self.git.write_object(spec_tree)?;
@@ -151,8 +157,8 @@ impl<'a> AtomContext<'a> {
         AtomTreeIds { spec, dir }: AtomTreeIds,
     ) -> GitResult<CommittedAtom> {
         let sig = Signature {
-            email: EMPTY.into(),
-            name: EMPTY.into(),
+            email: EMPTY_SIG.into(),
+            name: EMPTY_SIG.into(),
             time: gix::date::Time {
                 seconds: 0,
                 offset: 0,
@@ -167,16 +173,16 @@ impl<'a> AtomContext<'a> {
             encoding: None,
             message: format!("{}: {}", self.atom.id, self.atom.version).into(),
             extra_headers: vec![
-                ("format".into(), ATOM_FORMAT_VERSION.into()),
-                ("root".into(), self.id.root().to_hex().to_string().into()),
-                (
-                    ATOM_SRC_REF.into(),
-                    self.git.commit.id().to_hex().to_string().into(),
-                ),
                 (
                     "path".into(),
                     self.path.to_string_lossy().to_string().into(),
                 ),
+                ("root".into(), self.id.root().to_hex().to_string().into()),
+                (
+                    ATOM_ORIGIN.into(),
+                    self.git.commit.id().to_hex().to_string().into(),
+                ),
+                ("format".into(), ATOM_FORMAT_VERSION.into()),
             ],
         };
         let src = self.git.commit.id;
@@ -207,6 +213,8 @@ impl<'a> CommittedAtom {
     ) -> GitResult<Reference> {
         use gix::refs::transaction::PreviousValue;
 
+        tracing::trace!("writing atom ref: {}", atom_ref);
+
         Ok(atom.git.repo.reference(
             format!("refs/{}", atom_ref),
             id,
@@ -223,15 +231,15 @@ impl<'a> CommittedAtom {
 
         Ok(if let Some(spec) = commit.parents.first() {
             AtomReferences {
-                spec: self.write_ref(atom, *spec, atom.refs(RefKind::Spec))?,
-                tip: self.write_ref(atom, *tip, atom.refs(RefKind::Tip))?,
-                src: self.write_ref(atom, *src, atom.refs(RefKind::Src))?,
+                manifest: self.write_ref(atom, *spec, atom.refs(RefKind::Manifest))?,
+                content: self.write_ref(atom, *tip, atom.refs(RefKind::Content))?,
+                source: self.write_ref(atom, *src, atom.refs(RefKind::Source))?,
             }
         } else {
             AtomReferences {
-                spec: self.write_ref(atom, *tip, atom.refs(RefKind::Spec))?,
-                tip: self.write_ref(atom, *tip, atom.refs(RefKind::Tip))?,
-                src: self.write_ref(atom, *src, atom.refs(RefKind::Src))?,
+                manifest: self.write_ref(atom, *tip, atom.refs(RefKind::Manifest))?,
+                content: self.write_ref(atom, *tip, atom.refs(RefKind::Content))?,
+                source: self.write_ref(atom, *src, atom.refs(RefKind::Source))?,
             }
         })
     }
@@ -248,7 +256,7 @@ impl<'a> AtomReferences<'a> {
         let remote = atom.git.remote_str.to_owned();
         let mut tasks = atom.git.push_tasks.borrow_mut();
 
-        for r in [&self.tip, &self.spec, &self.src] {
+        for r in [&self.content, &self.manifest, &self.source] {
             let r = r.name().as_bstr().to_string();
             let remote = remote.clone();
             let task = async move {
@@ -260,9 +268,9 @@ impl<'a> AtomReferences<'a> {
         }
 
         GitContent {
-            spec: self.spec.detach(),
-            tip: self.tip.detach(),
-            src: self.src.detach(),
+            spec: self.manifest.detach(),
+            tip: self.content.detach(),
+            src: self.source.detach(),
             path: atom.path.to_path_buf(),
             ref_prefix: atom.ref_prefix.clone(),
         }

@@ -1,7 +1,7 @@
 mod r#impl;
 
 use super::{error::GitError, Content, PublishOutcome, Record};
-use crate::{Atom, AtomId};
+use crate::{store::NormalizeStorePath, Atom, AtomId};
 
 use gix::Commit;
 use gix::{ObjectId, Repository, Tree};
@@ -36,24 +36,6 @@ struct AtomContext<'a> {
     git: &'a GitContext<'a>,
 }
 
-pub trait ExtendRepo {
-    /// Normalizes a given path to be relative to the repository root.
-    ///
-    /// This function takes a path (relative or absolute) and attempts to normalize it
-    /// relative to the repository root, based on the current working directory within
-    /// the repository's file system.
-    ///
-    /// # Behavior:
-    /// - For relative paths (e.g., "foo/bar" or "../foo"):
-    ///   - Interpreted as relative to the current working directory within the repository.
-    ///   - Computed relative to the repository root.
-    ///
-    /// - For absolute paths (e.g., "/foo/bar"):
-    ///   - Treated as if the repository root is the filesystem root.
-    ///   - The leading slash is ignored, and the path is considered relative to the repo root.
-    fn normalize(&self, path: &Path) -> Result<PathBuf, GitError>;
-}
-
 struct FoundAtom<'a> {
     atom: Atom,
     id: GitAtomId,
@@ -83,14 +65,17 @@ struct AtomTreeIds {
 }
 
 enum RefKind {
-    Spec,
-    Tip,
-    Src,
+    Manifest,
+    Content,
+    Source,
 }
+
+use semver::Version;
 
 struct AtomRef<'a> {
     prefix: &'a str,
     kind: RefKind,
+    version: &'a Version,
 }
 
 use gix::Reference;
@@ -99,11 +84,11 @@ use gix::Reference;
 /// Struct representing the git refs pointing to the atom's parts
 pub(super) struct AtomReferences<'a> {
     /// Git ref pointing to the atom's manifest and lock
-    spec: Reference<'a>,
+    manifest: Reference<'a>,
     /// The git ref pointing to the tip of the atom's history
-    tip: Reference<'a>,
+    content: Reference<'a>,
     /// The git ref pointing to the commit the atom's blob objects are referenced from
-    src: Reference<'a>,
+    source: Reference<'a>,
 }
 
 pub struct GitContent {
@@ -253,7 +238,7 @@ impl<'a> Publish<Root> for GitContext<'a> {
         paths
             .into_iter()
             .map(|path| {
-                let path = match self.repo.normalize(&path.with_extension(super::ATOM_EXT)) {
+                let path = match self.repo.normalize(path.with_extension(super::ATOM_EXT)) {
                     Ok(path) => path,
                     Err(GitError::NoWorkDir) => path,
                     Err(e) => return Err(e),
@@ -294,7 +279,7 @@ impl<'a> Publish<Root> for GitContext<'a> {
 
 impl<'a> AtomContext<'a> {
     fn set(atom: &'a Atom, id: &'a GitAtomId, path: &'a Path, git: &'a GitContext) -> Self {
-        let prefix = format!("{}/{}/{}", super::ATOM_REF_TOP_LEVEL, id, atom.version);
+        let prefix = format!("{}/{}", super::ATOM_REF_TOP_LEVEL, id);
         Self {
             atom,
             id,
@@ -356,10 +341,12 @@ impl<'a> GitContext<'a> {
 
 use std::path::{Path, PathBuf};
 
-impl ExtendRepo for Repository {
-    fn normalize(&self, path: &Path) -> Result<PathBuf, GitError> {
+impl NormalizeStorePath for Repository {
+    type Error = GitError;
+    fn normalize<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GitError> {
         use path_clean::PathClean;
         use std::fs;
+        let path = path.as_ref();
 
         let rel_repo_root = self.work_dir().ok_or(GitError::NoWorkDir)?;
         let repo_root = fs::canonicalize(rel_repo_root)?;

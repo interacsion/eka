@@ -1,3 +1,4 @@
+mod git;
 use super::logging::LogValue;
 use thiserror::Error;
 
@@ -10,13 +11,13 @@ use gix::{
 
 #[non_exhaustive]
 #[derive(Clone, Debug)]
-pub(super) enum Store {
+pub(super) enum Detected {
     #[cfg(feature = "git")]
     Git(ThreadSafeRepository),
 }
 
 #[tracing::instrument(err)]
-pub(super) fn detect() -> Result<Store, StoreError> {
+pub(super) async fn detect() -> Result<Detected, StoreError> {
     #[cfg(feature = "git")]
     {
         let opts = Options {
@@ -29,7 +30,7 @@ pub(super) fn detect() -> Result<Store, StoreError> {
             git_dir = %repo.path().as_json(),
             work_dir = %repo.work_dir().as_json()
         );
-        return Ok(Store::Git(repo));
+        return Ok(Detected::Git(repo));
     }
 
     #[cfg_attr(feature = "git", allow(unreachable_code))]

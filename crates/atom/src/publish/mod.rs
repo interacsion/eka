@@ -97,11 +97,10 @@ impl<R> Record<R> {
 }
 
 /// The current version of the atom ref format
-const ATOM_FORMAT_VERSION: &str = "v1";
-const EMPTY: &str = "";
+const EMPTY_SIG: &str = "";
+const ATOM_FORMAT_VERSION: &str = "1";
 /// the namespace under refs to publish atoms
 const ATOM_REF_TOP_LEVEL: &str = "atoms";
-const ATOM_TIP_REF: &str = "tip";
-const ATOM_SPEC_REF: &str = "spec";
-const ATOM_SRC_REF: &str = "src";
+const ATOM_ORIGIN: &str = "source";
+const ATOM_MANIFEST: &str = "blueprint";
 pub const ATOM_EXT: &str = "atom";

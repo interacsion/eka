@@ -1,7 +1,7 @@
 #[cfg(feature = "git")]
 mod git;
 
-use crate::cli::store::Store;
+use crate::cli::store::Detected;
 
 use atom::publish::{
     self,
@@ -33,13 +33,13 @@ struct StoreArgs {
 }
 
 use publish::Stats;
-pub(super) async fn run(store: Store, args: PublishArgs) -> Result<Stats, PublishError> {
+pub(super) async fn run(store: Detected, args: PublishArgs) -> Result<Stats, PublishError> {
     use Err as Skipped;
     use Ok as Published;
     let mut stats = publish::Stats::default();
     match store {
         #[cfg(feature = "git")]
-        Store::Git(repo) => {
+        Detected::Git(repo) => {
             let (results, mut errors) = git::run(repo, args).await?;
 
             for res in results {

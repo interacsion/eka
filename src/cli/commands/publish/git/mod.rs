@@ -35,9 +35,9 @@ pub(super) async fn run(
     repo: ThreadSafeRepository,
     args: PublishArgs,
 ) -> GitResult<(Vec<GitResult<GitOutcome>>, Vec<GitError>)> {
-    use atom::publish::{
-        git::{ExtendRepo, GitPublisher},
-        Builder, Publish,
+    use atom::{
+        publish::{git::GitPublisher, Builder, Publish},
+        store::NormalizeStorePath,
     };
     use std::path::Path;
     let repo = repo.to_thread_local();

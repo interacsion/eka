@@ -1,3 +1,4 @@
+mod init;
 mod publish;
 
 use super::Args;
@@ -19,14 +20,17 @@ pub(super) enum Commands {
     /// future support of alternative storage backends as well.
     #[command(verbatim_doc_comment)]
     Publish(publish::PublishArgs),
+    Init(init::Args),
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
+    let store = store::detect();
     match args.command {
         Commands::Publish(args) => {
-            let store = store::detect()?;
-            publish::run(store, args).await?;
+            publish::run(store.await?, args).await?;
         }
+
+        Commands::Init(args) => init::run(store.await.ok(), args)?,
     }
     Ok(())
 }
