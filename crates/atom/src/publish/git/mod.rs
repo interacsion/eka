@@ -1,11 +1,15 @@
 mod r#impl;
 
 use super::{error::GitError, Content, PublishOutcome, Record};
-use crate::{store::NormalizeStorePath, Atom, AtomId};
+use crate::{
+    store::{git::Root, NormalizeStorePath},
+    Atom, AtomId,
+};
 
 use gix::Commit;
 use gix::{ObjectId, Repository, Tree};
-use std::{cell::RefCell, ops::Deref};
+use std::cell::RefCell;
+use std::path::{Path, PathBuf};
 use tokio::task::JoinSet;
 
 pub type GitAtomId = AtomId<Root>;
@@ -235,13 +239,14 @@ impl<'a> Publish<Root> for GitContext<'a> {
     where
         C: IntoIterator<Item = PathBuf>,
     {
+        use crate::store::git;
         paths
             .into_iter()
             .map(|path| {
                 let path = match self.repo.normalize(path.with_extension(super::ATOM_EXT)) {
                     Ok(path) => path,
-                    Err(GitError::NoWorkDir) => path,
-                    Err(e) => return Err(e),
+                    Err(git::Error::NoWorkDir) => path,
+                    Err(e) => return Err(e.into()),
                 };
                 self.publish_atom(&path)
             })
@@ -336,94 +341,5 @@ impl<'a> GitContext<'a> {
 
     pub fn tree(&self) -> Tree<'a> {
         self.tree.clone()
-    }
-}
-
-use std::path::{Path, PathBuf};
-
-impl NormalizeStorePath for Repository {
-    type Error = GitError;
-    fn normalize<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GitError> {
-        use path_clean::PathClean;
-        use std::fs;
-        let path = path.as_ref();
-
-        let rel_repo_root = self.work_dir().ok_or(GitError::NoWorkDir)?;
-        let repo_root = fs::canonicalize(rel_repo_root)?;
-        let current = self.current_dir();
-        let rel = current.join(path).clean();
-
-        rel.strip_prefix(&repo_root)
-            .map_or_else(
-                |e| {
-                    // handle absolute paths as if they were relative to the repo root
-                    if !path.is_absolute() {
-                        return Err(e);
-                    }
-                    let cleaned = path.clean();
-                    // Preserve the platform-specific root
-                    let p = cleaned.strip_prefix(Path::new("/"))?;
-                    repo_root
-                        .join(p)
-                        .clean()
-                        .strip_prefix(&repo_root)
-                        .map(Path::to_path_buf)
-                },
-                |p| Ok(p.to_path_buf()),
-            )
-            .map_err(|e| {
-                tracing::warn!(
-                    message = "Ignoring path outside repo root",
-                    path = %path.display(),
-                );
-                GitError::NormalizationFailed(e)
-            })
-    }
-}
-
-use crate::id::CalculateRoot;
-
-pub struct Root(ObjectId);
-
-impl<'a> CalculateRoot<Root> for Commit<'a> {
-    type Error = GitError;
-    fn calculate_root(&self) -> GitResult<Root> {
-        use gix::traverse::commit::simple::{CommitTimeOrder, Sorting};
-        // FIXME: we rely on a custom crate patch to search the commit graph
-        // with a bias for older commits. The default gix behavior is the opposite
-        // starting with bias for newer commits.
-        //
-        // it is based on the more general concept of an OldestFirst traversal
-        // introduce by @nrdxp upstream: https://github.com/Byron/gitoxide/pull/1610
-        //
-        // However, that work tracks main and the goal of this patch is to remain
-        // as minimal as possible on top of a release tag, for easier maintenance
-        // assuming it may take a while to merge upstream.
-        let mut walk = self
-            .ancestors()
-            .use_commit_graph(true)
-            .sorting(Sorting::ByCommitTime(CommitTimeOrder::OldestFirst))
-            .all()?;
-
-        while let Some(Ok(info)) = walk.next() {
-            if info.parent_ids.is_empty() {
-                return Ok(Root(info.id));
-            }
-        }
-
-        Err(GitError::RootNotFound)
-    }
-}
-
-impl AsRef<[u8]> for Root {
-    fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
-    }
-}
-
-impl Deref for Root {
-    type Target = ObjectId;
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }

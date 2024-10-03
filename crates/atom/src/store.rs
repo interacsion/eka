@@ -1,4 +1,7 @@
+pub mod git;
 use std::path::{Path, PathBuf};
+
+pub trait StoreRoot {}
 
 pub trait NormalizeStorePath {
     type Error;

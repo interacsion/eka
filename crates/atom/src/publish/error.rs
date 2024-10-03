@@ -17,8 +17,6 @@ pub enum GitError {
     #[error(transparent)]
     NoCommit(#[from] object::find::existing::with_conversion::Error),
     #[error(transparent)]
-    NormalizationFailed(#[from] std::path::StripPrefixError),
-    #[error(transparent)]
     NoTree(#[from] object::commit::Error),
     #[error(transparent)]
     NoObject(#[from] object::find::existing::Error),
@@ -38,14 +36,12 @@ pub enum GitError {
     Invalid(#[source] crate::manifest::AtomError, Box<PathBuf>),
     #[error("The given path does not point to an atom")]
     NotAFile(PathBuf),
-    #[error("Repository does not have a working directory")]
-    NoWorkDir,
     #[error("Failed to sync some atoms to the remote")]
     SomePushFailed,
     #[error("Failed to published some of the specified atoms")]
     Failed,
-    #[error("Failed to calculate the repositories root commit")]
-    RootNotFound,
+    #[error(transparent)]
+    StoreError(#[from] crate::store::git::Error),
     #[error("Failed to find any atoms under the current directory")]
     NotFound,
     #[error("Duplicate atoms detected in the given revision, refusing to publish")]

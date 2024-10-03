@@ -1,8 +1,11 @@
 use super::PublishArgs;
 
-use atom::publish::{
-    error::GitError,
-    git::{GitOutcome, GitResult},
+use atom::{
+    publish::{
+        error::GitError,
+        git::{GitOutcome, GitResult},
+    },
+    store::git,
 };
 use clap::Parser;
 use std::collections::HashSet;
@@ -14,7 +17,7 @@ use gix::ThreadSafeRepository;
 #[command(next_help_heading = "Git Options")]
 pub(super) struct GitArgs {
     /// The target remote to publish the atom(s) to
-    #[arg(long, short = 't', default_value = "origin", name = "TARGET")]
+    #[arg(long, short = 't', default_value_t = git::default_remote(), name = "TARGET")]
     remote: String,
     /// The revision to publish the atom(s) from
     ///
@@ -32,7 +35,7 @@ pub(super) struct GitArgs {
 }
 
 pub(super) async fn run(
-    repo: ThreadSafeRepository,
+    repo: &ThreadSafeRepository,
     args: PublishArgs,
 ) -> GitResult<(Vec<GitResult<GitOutcome>>, Vec<GitError>)> {
     use atom::{

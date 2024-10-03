@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    let args = Args::parse();
+    let args = Args::parse_from(cli::change_directory());
     let Args { log, .. } = args;
 
     let (_guard, ansi) = cli::init_global_subscriber(log);

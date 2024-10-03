@@ -24,7 +24,9 @@ mod error {
 pub(super) fn run(store: Option<Detected>, args: Args) -> Result<(), error::Error> {
     if let Some(store) = store {
         match (store, args.bare) {
-            (Detected::Git(_repo), true) => {}
+            (Detected::Git(repo), true) => {
+                let repo = repo.to_thread_local();
+            }
             (Detected::Git(_repo), false) => todo!(),
         }
     } else {

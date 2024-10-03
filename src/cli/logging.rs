@@ -1,9 +1,6 @@
 use super::{Args, LogArgs};
 
 use clap::Parser;
-use serde::Serialize;
-use std::error;
-use std::fmt::Display;
 use std::str::FromStr;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
@@ -66,47 +63,4 @@ pub fn init_global_subscriber(args: LogArgs) -> (WorkerGuard, bool) {
     }
 
     (guard, ansi)
-}
-
-pub(super) trait LogValue {
-    fn as_json(&self) -> String
-    where
-        Self: Serialize;
-    fn _trim_whitespace(&self) -> String
-    where
-        Self: Display;
-    fn _log_err<T, E>(self) -> Result<T, E>
-    where
-        Self: Sized + Into<Result<T, E>>,
-        E: Display + error::Error + LogValue;
-}
-
-impl<T> LogValue for T {
-    fn as_json(&self) -> String
-    where
-        Self: Serialize,
-    {
-        serde_json::to_string(self).unwrap_or_else(|_| "null".to_string())
-    }
-    fn _trim_whitespace(&self) -> String
-    where
-        Self: Display,
-    {
-        self.to_string().trim().to_owned()
-    }
-    fn _log_err<P, E>(self) -> Result<P, E>
-    where
-        Self: Sized + Into<Result<P, E>>,
-        E: Display + error::Error + LogValue,
-    {
-        self.into().map_err(_log_error)
-    }
-}
-
-pub(super) fn _log_error<E>(e: E) -> E
-where
-    E: Display + error::Error + LogValue,
-{
-    tracing::error!(message = %e._trim_whitespace());
-    e
 }
