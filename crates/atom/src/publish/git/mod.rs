@@ -30,6 +30,8 @@ pub struct GitContext<'a> {
     remote_str: &'a str,
     /// a JoinSet of push tasks to avoid blocking on them
     push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
+    // a JoinSet of publish jobs, allowing us to publish a large number of atoms in parallel
+    // publish_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
 }
 
 struct AtomContext<'a> {

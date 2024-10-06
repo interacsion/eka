@@ -1,37 +1,27 @@
 use crate::cli::store::Detected;
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    #[arg(long, short, conflicts_with = "path")]
-    bare: bool,
-
-    #[command(subcommand)]
-    init: InitStore,
+    #[command(flatten)]
+    #[cfg(feature = "git")]
+    git: GitArgs,
 }
 
-#[derive(Subcommand, Debug, Clone)]
-enum InitStore {
-    Git,
+#[derive(Parser, Debug)]
+#[command(next_help_heading = "Git Options")]
+struct GitArgs {
+    /// The target remote to initialize
+    #[arg(long, short = 't', default_value_t = git::default_remote().to_owned(), name = "TARGET")]
+    remote: String,
 }
 
-mod error {
-    use thiserror::Error as ThisError;
-    #[derive(ThisError, Debug)]
-    pub enum Error {}
-}
-
-pub(super) fn run(store: Option<Detected>, args: Args) -> Result<(), error::Error> {
+use atom::store::git;
+pub(super) fn run(store: Option<Detected>, args: Args) -> Result<(), git::Error> {
+    use atom::store::Init;
     if let Some(store) = store {
-        match (store, args.bare) {
-            (Detected::Git(repo), true) => {
-                let repo = repo.to_thread_local();
-            }
-            (Detected::Git(_repo), false) => todo!(),
-        }
-    } else {
-        match args.init {
-            InitStore::Git => {}
+        match store {
+            Detected::Git(repo) => repo.to_thread_local().ekala_init(args.git.remote)?,
         }
     }
     Ok(())

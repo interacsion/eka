@@ -3,6 +3,12 @@ use std::path::{Path, PathBuf};
 
 pub trait StoreRoot {}
 
+pub trait Init<R> {
+    type Error;
+    fn sync(&self, target: &str) -> Result<R, Self::Error>;
+    fn ekala_init(&self, target: String) -> Result<(), Self::Error>;
+}
+
 pub trait NormalizeStorePath {
     type Error;
     /// Normalizes a given path to be relative to the store root.

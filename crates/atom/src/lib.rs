@@ -8,4 +8,5 @@ pub mod store;
 pub mod uri;
 pub use core::Atom;
 pub use id::AtomId;
+pub use id::CalculateRoot;
 pub use manifest::Manifest;

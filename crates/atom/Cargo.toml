@@ -12,6 +12,7 @@ path-clean        = "^1"
 unic-ucd-category = "^0.9"
 
 lazy_static.workspace = true
+prodash.workspace     = true
 semver.workspace      = true
 serde.workspace       = true
 thiserror.workspace   = true

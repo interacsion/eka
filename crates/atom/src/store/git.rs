@@ -10,6 +10,8 @@ use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]
 pub enum Error {
+    #[error("No HEAD ref found")]
+    NoHead,
     #[error("Repository does not have a working directory")]
     NoWorkDir,
     #[error("Failed to calculate the repositories root commit")]
@@ -20,10 +22,27 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     NormalizationFailed(#[from] std::path::StripPrefixError),
+    #[error(transparent)]
+    NoRemote(#[from] Box<gix::remote::find::existing::Error>),
+    #[error(transparent)]
+    Connect(#[from] Box<gix::remote::connect::Error>),
+    #[error(transparent)]
+    Refs(#[from] Box<gix::remote::fetch::prepare::Error>),
+    #[error(transparent)]
+    Fetch(#[from] Box<gix::remote::fetch::Error>),
+    #[error(transparent)]
+    NoCommit(#[from] Box<gix::object::find::existing::with_conversion::Error>),
+    #[error(transparent)]
+    AddRefFailed(#[from] Box<gix::refspec::parse::Error>),
+    #[error(transparent)]
+    WriteRef(#[from] Box<gix::reference::edit::Error>),
 }
 
 /// Provide a lazyily instantiated static reference to the git repository.
 static REPO: OnceLock<Option<ThreadSafeRepository>> = OnceLock::new();
+
+use std::borrow::Cow;
+static DEFAULT_REMOTE: OnceLock<Cow<str>> = OnceLock::new();
 
 pub struct Root(ObjectId);
 
@@ -43,6 +62,21 @@ pub fn repo() -> Result<Option<&'static ThreadSafeRepository>, Box<gix::discover
     }
 }
 
+use std::io;
+pub fn run_git_command(args: &[&str]) -> io::Result<Vec<u8>> {
+    use std::process::Command;
+    let output = Command::new("git").args(args).output()?;
+
+    if output.status.success() {
+        Ok(output.stdout)
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            String::from_utf8_lossy(&output.stderr),
+        ))
+    }
+}
+
 fn get_repo() -> Result<ThreadSafeRepository, Box<gix::discover::Error>> {
     let opts = Options {
         required_trust: Trust::Full,
@@ -51,17 +85,21 @@ fn get_repo() -> Result<ThreadSafeRepository, Box<gix::discover::Error>> {
     ThreadSafeRepository::discover_opts(".", opts, Mapping::default()).map_err(Box::new)
 }
 
-pub fn default_remote() -> String {
+pub fn default_remote() -> &'static str {
     use gix::remote::Direction;
-    repo()
-        .ok()
-        .flatten()
-        .and_then(|repo| {
-            repo.to_thread_local()
-                .remote_default_name(Direction::Push)
-                .map(|s| s.to_string())
+    DEFAULT_REMOTE
+        .get_or_init(|| {
+            repo()
+                .ok()
+                .flatten()
+                .and_then(|repo| {
+                    repo.to_thread_local()
+                        .remote_default_name(Direction::Push)
+                        .map(|s| s.to_string().into())
+                })
+                .unwrap_or("origin".into())
         })
-        .unwrap_or("origin".into())
+        .as_ref()
 }
 
 use std::ops::Deref;
@@ -150,4 +188,105 @@ impl AsRef<[u8]> for Root {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
+}
+
+use super::Init;
+impl Init<ObjectId> for Repository {
+    type Error = Error;
+    /// sync with the default remote and get the most up to date
+    /// HEAD according to it.
+    fn sync(&self, remote_str: &str) -> Result<ObjectId, Error> {
+        use gix::remote::{fetch::Tags, Direction};
+
+        use gix::progress::tree::Root;
+
+        let tree = Root::new();
+        let sync_progress = tree.add_child("sync");
+        let init_progress = tree.add_child("init");
+        let handle = setup_line_renderer(&tree);
+
+        let mut remote = self
+            .find_remote(remote_str)
+            .map_err(Box::new)?
+            .with_fetch_tags(Tags::None);
+        remote
+            .replace_refspecs(Some("+HEAD"), Direction::Fetch)
+            .map_err(Box::new)?;
+
+        use gix::remote::ref_map::Options;
+        let client = remote.connect(Direction::Fetch).map_err(Box::new)?;
+        let sync = client
+            .prepare_fetch(sync_progress, Options::default())
+            .map_err(Box::new)?;
+
+        use std::sync::atomic::AtomicBool;
+        let outcome = sync
+            .receive(init_progress, &AtomicBool::new(false))
+            .map_err(Box::new)?;
+
+        handle.shutdown_and_wait();
+
+        let refs = outcome.ref_map.remote_refs;
+
+        use gix::protocol::handshake::Ref;
+        let head_id = refs
+            .iter()
+            .find(|r| match r {
+                Ref::Symbolic { full_ref_name, .. } => full_ref_name == "HEAD",
+                _ => false,
+            })
+            .map(|r| match r {
+                Ref::Symbolic { object, .. } => Some(object.to_owned()),
+                _ => None,
+            })
+            .ok_or(Error::NoHead)?;
+        head_id.ok_or(Error::NoHead)
+    }
+
+    /// Initialize the repository by calculating the root, according to the latest HEAD.
+    fn ekala_init(&self, remote: String) -> Result<(), Error> {
+        let head = self.sync(remote.as_str())?;
+
+        use crate::CalculateRoot;
+        let root = *self.find_commit(head).map_err(Box::new)?.calculate_root()?;
+
+        use gix::refs::transaction::PreviousValue;
+        let root_ref = self
+            .reference(
+                "refs/tags/ekala/root/v1",
+                root,
+                PreviousValue::MustNotExist,
+                "init: root",
+            )
+            .map_err(Box::new)?
+            .name()
+            .as_bstr()
+            .to_string();
+
+        run_git_command(&[
+            "push",
+            remote.as_str(),
+            format!("{}:{}", root_ref, root_ref).as_str(),
+        ])?;
+        Ok(())
+    }
+}
+
+pub type ProgressRange = std::ops::RangeInclusive<prodash::progress::key::Level>;
+pub const STANDARD_RANGE: ProgressRange = 2..=2;
+
+pub fn setup_line_renderer(
+    progress: &std::sync::Arc<prodash::tree::Root>,
+) -> prodash::render::line::JoinHandle {
+    prodash::render::line(
+        std::io::stderr(),
+        std::sync::Arc::downgrade(progress),
+        prodash::render::line::Options {
+            level_filter: Some(STANDARD_RANGE),
+            initial_delay: Some(std::time::Duration::from_millis(500)),
+            throughput: true,
+            ..prodash::render::line::Options::default()
+        }
+        .auto_configure(prodash::render::line::StreamKind::Stderr),
+    )
 }

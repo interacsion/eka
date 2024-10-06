@@ -20,6 +20,11 @@ pub(super) enum Commands {
     /// future support of alternative storage backends as well.
     #[command(verbatim_doc_comment)]
     Publish(publish::PublishArgs),
+    /// Initialize the Ekala store.
+    ///
+    /// This command initializes the repository for use as an Ekala store
+    /// fit for publishing atoms to the remote.
+    #[command(verbatim_doc_comment)]
     Init(init::Args),
 }
 

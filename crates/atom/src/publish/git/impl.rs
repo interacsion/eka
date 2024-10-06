@@ -2,7 +2,7 @@ use super::{
     super::{ATOM_FORMAT_VERSION, ATOM_MANIFEST, ATOM_ORIGIN, EMPTY_SIG},
     AtomContext, AtomRef, GitContext, GitResult, RefKind,
 };
-use crate::{publish::error::GitError, Atom, AtomId, Manifest};
+use crate::{publish::error::GitError, store::git, Atom, AtomId, Manifest};
 
 use gix::{
     actor::Signature,
@@ -260,7 +260,8 @@ impl<'a> AtomReferences<'a> {
             let r = r.name().as_bstr().to_string();
             let remote = remote.clone();
             let task = async move {
-                let result = run_git_command(&["push", &remote, format!("{}:{}", r, r).as_str()])?;
+                let result =
+                    git::run_git_command(&["push", &remote, format!("{}:{}", r, r).as_str()])?;
 
                 Ok(result)
             };
@@ -302,20 +303,6 @@ fn atom_tree(entries: &mut Vec<AtomEntry>, atom: &Entry) -> AtomTree {
 
     AtomTree {
         entries: entries.clone(),
-    }
-}
-
-fn run_git_command(args: &[&str]) -> io::Result<Vec<u8>> {
-    use std::process::Command;
-    let output = Command::new("git").args(args).output()?;
-
-    if output.status.success() {
-        Ok(output.stdout)
-    } else {
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            String::from_utf8_lossy(&output.stderr),
-        ))
     }
 }
 
