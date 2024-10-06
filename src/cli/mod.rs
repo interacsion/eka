@@ -1,5 +1,5 @@
 mod commands;
-mod logging;
+pub mod logging;
 mod store;
 
 pub use commands::run;

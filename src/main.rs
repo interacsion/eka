@@ -1,5 +1,3 @@
-mod ansi;
-
 use clap::Parser;
 use eka::cli::{self, Args};
 use std::process::ExitCode;
@@ -9,16 +7,10 @@ async fn main() -> ExitCode {
     let args = Args::parse_from(cli::change_directory());
     let Args { log, .. } = args;
 
-    let (_guard, ansi) = cli::init_global_subscriber(log);
+    let _guard = cli::init_global_subscriber(log);
 
     if let Err(e) = cli::run(args).await {
-        tracing::error!(
-            fatal = true,
-            "{}FATAL{} {}",
-            if ansi { ansi::MAGENTA } else { "" },
-            if ansi { ansi::RESET } else { "" },
-            e
-        );
+        eka::fatal!(e);
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS

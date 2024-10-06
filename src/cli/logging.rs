@@ -27,15 +27,16 @@ fn get_log_level(args: LogArgs) -> LevelFilter {
     }
 }
 
+use std::sync::atomic::{AtomicBool, Ordering};
+pub static ANSI: AtomicBool = AtomicBool::new(true);
+
 use tracing_appender::non_blocking::WorkerGuard;
-pub fn init_global_subscriber(args: LogArgs) -> (WorkerGuard, bool) {
+pub fn init_global_subscriber(args: LogArgs) -> WorkerGuard {
     let log_level = get_log_level(args);
 
     let env_filter = EnvFilter::from_default_env().add_directive(log_level.into());
 
     let (non_blocking, guard) = tracing_appender::non_blocking(std::io::stderr());
-
-    let mut ansi: bool = true;
 
     use std::io::IsTerminal;
     let fmt = if std::io::stderr().is_terminal() {
@@ -44,9 +45,9 @@ pub fn init_global_subscriber(args: LogArgs) -> (WorkerGuard, bool) {
             .with_writer(non_blocking)
             .boxed()
     } else {
-        ansi = false;
+        ANSI.store(false, Ordering::SeqCst);
         fmt::layer()
-            .with_ansi(ansi)
+            .with_ansi(ANSI.load(Ordering::SeqCst))
             .json()
             .with_writer(non_blocking)
             .boxed()
@@ -62,5 +63,26 @@ pub fn init_global_subscriber(args: LogArgs) -> (WorkerGuard, bool) {
         let _ = Args::parse();
     }
 
-    (guard, ansi)
+    guard
+}
+
+pub mod ansi {
+    pub const MAGENTA: &str = "\x1b[35m";
+    pub const RESET: &str = "\x1b[0m";
+}
+
+#[macro_export]
+macro_rules! fatal {
+    ($error:expr) => {{
+        use $crate::cli::logging::ansi;
+        use $crate::cli::logging::ANSI;
+        let ansi = ANSI.load(std::sync::atomic::Ordering::SeqCst);
+        tracing::error!(
+            fatal = true,
+            "{}FATAL{} {}",
+            if ansi { ansi::MAGENTA } else { "" },
+            if ansi { ansi::RESET } else { "" },
+            $error
+        );
+    }};
 }
