@@ -10,8 +10,8 @@ use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]
 pub enum Error {
-    #[error("No HEAD ref found")]
-    NoHead,
+    #[error("No ref named `{0}` found for remote `{1}`")]
+    NoRef(String, String),
     #[error("Repository does not have a working directory")]
     NoWorkDir,
     #[error("Failed to calculate the repositories root commit")]
@@ -193,54 +193,12 @@ impl AsRef<[u8]> for Root {
 use super::Init;
 impl Init<ObjectId> for Repository {
     type Error = Error;
-    /// sync with the default remote and get the most up to date
-    /// HEAD according to it.
-    fn sync(&self, remote_str: &str) -> Result<ObjectId, Error> {
-        use gix::remote::{fetch::Tags, Direction};
-
-        use gix::progress::tree::Root;
-
-        let tree = Root::new();
-        let sync_progress = tree.add_child("sync");
-        let init_progress = tree.add_child("init");
-        let handle = setup_line_renderer(&tree);
-
-        let mut remote = self
-            .find_remote(remote_str)
-            .map_err(Box::new)?
-            .with_fetch_tags(Tags::None);
-        remote
-            .replace_refspecs(Some("+HEAD"), Direction::Fetch)
-            .map_err(Box::new)?;
-
-        use gix::remote::ref_map::Options;
-        let client = remote.connect(Direction::Fetch).map_err(Box::new)?;
-        let sync = client
-            .prepare_fetch(sync_progress, Options::default())
-            .map_err(Box::new)?;
-
-        use std::sync::atomic::AtomicBool;
-        let outcome = sync
-            .receive(init_progress, &AtomicBool::new(false))
-            .map_err(Box::new)?;
-
-        handle.shutdown_and_wait();
-
-        let refs = outcome.ref_map.remote_refs;
-
-        use gix::protocol::handshake::Ref;
-        let head_id = refs
-            .iter()
-            .find(|r| match r {
-                Ref::Symbolic { full_ref_name, .. } => full_ref_name == "HEAD",
-                _ => false,
-            })
-            .map(|r| match r {
-                Ref::Symbolic { object, .. } => Some(object.to_owned()),
-                _ => None,
-            })
-            .ok_or(Error::NoHead)?;
-        head_id.ok_or(Error::NoHead)
+    fn is_ekala_store(&self, remote: &str) -> bool {
+        get_ref(self, remote, "refs/tags/ekala/root/v1").is_ok()
+    }
+    /// Sync with the given remote and get the most up to date HEAD according to it.
+    fn sync(&self, remote: &str) -> Result<ObjectId, Error> {
+        get_ref(self, remote, "HEAD")
     }
 
     /// Initialize the repository by calculating the root, according to the latest HEAD.
@@ -263,11 +221,13 @@ impl Init<ObjectId> for Repository {
             .as_bstr()
             .to_string();
 
+        // FIXME: use gix for push once it supports it
         run_git_command(&[
             "push",
             remote.as_str(),
             format!("{}:{}", root_ref, root_ref).as_str(),
         ])?;
+        tracing::info!(remote, message = "Successfully initialized");
         Ok(())
     }
 }
@@ -289,4 +249,50 @@ pub fn setup_line_renderer(
         }
         .auto_configure(prodash::render::line::StreamKind::Stderr),
     )
+}
+
+fn get_ref(repo: &Repository, remote_str: &str, reference: &str) -> Result<ObjectId, Error> {
+    use gix::remote::{fetch::Tags, Direction};
+
+    use gix::progress::tree::Root;
+
+    let tree = Root::new();
+    let sync_progress = tree.add_child("sync");
+    let init_progress = tree.add_child("init");
+    let handle = setup_line_renderer(&tree);
+
+    let mut remote = repo
+        .find_remote(remote_str)
+        .map_err(Box::new)?
+        .with_fetch_tags(Tags::None);
+    remote
+        .replace_refspecs(Some(format!("+{}", reference).as_str()), Direction::Fetch)
+        .map_err(Box::new)?;
+
+    use gix::remote::ref_map::Options;
+    let client = remote.connect(Direction::Fetch).map_err(Box::new)?;
+    let sync = client
+        .prepare_fetch(sync_progress, Options::default())
+        .map_err(Box::new)?;
+
+    use std::sync::atomic::AtomicBool;
+    let outcome = sync
+        .receive(init_progress, &AtomicBool::new(false))
+        .map_err(Box::new)?;
+
+    handle.shutdown_and_wait();
+
+    let refs = outcome.ref_map.remote_refs;
+
+    use gix::protocol::handshake::Ref;
+    refs.iter()
+        .find(|r| match r {
+            Ref::Symbolic { full_ref_name, .. } => full_ref_name == reference,
+            _ => false,
+        })
+        .and_then(|r| match r {
+            Ref::Symbolic { object, .. } => Some(object.to_owned()),
+            _ => None,
+        })
+        .ok_or_else(|| Error::NoRef(reference.to_owned(), remote_str.to_owned()))
 }

@@ -7,6 +7,7 @@ pub trait Init<R> {
     type Error;
     fn sync(&self, target: &str) -> Result<R, Self::Error>;
     fn ekala_init(&self, target: String) -> Result<(), Self::Error>;
+    fn is_ekala_store(&self, target: &str) -> bool;
 }
 
 pub trait NormalizeStorePath {
