@@ -23,7 +23,7 @@ pub(super) enum Commands {
     /// Initialize the Ekala store.
     ///
     /// This command initializes the repository for use as an Ekala store
-    /// fit for publishing atoms to the remote.
+    /// fit for publishing atoms to a remote location.
     #[command(verbatim_doc_comment)]
     Init(init::Args),
 }

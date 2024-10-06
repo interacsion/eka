@@ -32,6 +32,8 @@ pub enum GitError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     JoinFailed(#[from] tokio::task::JoinError),
+    #[error("Remote is not initialized")]
+    NotInitialized,
     #[error("Ignoring invalid atom manifest")]
     Invalid(#[source] crate::manifest::AtomError, Box<PathBuf>),
     #[error("The given path does not point to an atom")]

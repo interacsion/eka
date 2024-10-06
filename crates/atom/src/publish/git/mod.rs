@@ -1,4 +1,4 @@
-mod r#impl;
+mod inner;
 
 use super::{error::GitError, Content, PublishOutcome, Record};
 use crate::{

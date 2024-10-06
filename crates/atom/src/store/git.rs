@@ -190,11 +190,15 @@ impl AsRef<[u8]> for Root {
     }
 }
 
+const V1_ROOT: &str = "refs/tags/ekala/root/v1";
+
 use super::Init;
 impl Init<ObjectId> for Repository {
     type Error = Error;
     fn is_ekala_store(&self, remote: &str) -> bool {
-        get_ref(self, remote, "refs/tags/ekala/root/v1").is_ok()
+        get_ref(self, remote, V1_ROOT)
+            .map_err(|e| tracing::warn!(message = %e))
+            .is_ok()
     }
     /// Sync with the given remote and get the most up to date HEAD according to it.
     fn sync(&self, remote: &str) -> Result<ObjectId, Error> {
@@ -210,12 +214,7 @@ impl Init<ObjectId> for Repository {
 
         use gix::refs::transaction::PreviousValue;
         let root_ref = self
-            .reference(
-                "refs/tags/ekala/root/v1",
-                root,
-                PreviousValue::MustNotExist,
-                "init: root",
-            )
+            .reference(V1_ROOT, root, PreviousValue::MustNotExist, "init: root")
             .map_err(Box::new)?
             .name()
             .as_bstr()
@@ -284,15 +283,14 @@ fn get_ref(repo: &Repository, remote_str: &str, reference: &str) -> Result<Objec
 
     let refs = outcome.ref_map.remote_refs;
 
-    use gix::protocol::handshake::Ref;
     refs.iter()
-        .find(|r| match r {
-            Ref::Symbolic { full_ref_name, .. } => full_ref_name == reference,
-            _ => false,
+        .find(|r| {
+            let (name, _, _) = r.unpack();
+            name == reference
         })
-        .and_then(|r| match r {
-            Ref::Symbolic { object, .. } => Some(object.to_owned()),
-            _ => None,
+        .and_then(|r| {
+            let (_, target, peeled) = r.unpack();
+            peeled.or(target).map(ToOwned::to_owned)
         })
         .ok_or_else(|| Error::NoRef(reference.to_owned(), remote_str.to_owned()))
 }
