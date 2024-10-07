@@ -24,4 +24,6 @@ config = { path = "../config", features = ["git"] }
 gix    = { workspace = true, default-features = false, features = ["serde"] }
 
 [dev-dependencies]
-insta.workspace = true
+anyhow.workspace   = true
+insta.workspace    = true
+tempfile.workspace = true

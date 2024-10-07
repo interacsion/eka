@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod test;
+
 use crate::id::CalculateRoot;
 
 use gix::{
@@ -222,6 +225,8 @@ impl Init<ObjectId> for Repository {
 
         // FIXME: use gix for push once it supports it
         run_git_command(&[
+            "-C",
+            self.git_dir().to_string_lossy().as_ref(),
             "push",
             remote.as_str(),
             format!("{}:{}", root_ref, root_ref).as_str(),
