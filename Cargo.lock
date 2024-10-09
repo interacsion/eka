@@ -143,7 +143,7 @@ version = "0.1.0"
 dependencies = [
  "addr",
  "anyhow",
- "base64",
+ "base32",
  "blake3",
  "config",
  "gix",
@@ -197,6 +197,12 @@ dependencies = [
  "rustc-demangle",
  "windows-targets 0.52.6",
 ]
+
+[[package]]
+name = "base32"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "022dfe9eb35f19ebbcb51e0b40a5ab759f46ad60cadf7297e0bd085afb50e076"
 
 [[package]]
 name = "base64"

@@ -10,3 +10,5 @@ pub use core::Atom;
 pub use id::AtomId;
 pub use id::CalculateRoot;
 pub use manifest::Manifest;
+
+const BASE32: base32::Alphabet = base32::Alphabet::Rfc4648HexLower { padding: false };

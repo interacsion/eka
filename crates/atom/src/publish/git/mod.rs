@@ -286,7 +286,7 @@ impl<'a> Publish<Root> for GitContext<'a> {
 
 impl<'a> AtomContext<'a> {
     fn set(atom: &'a Atom, id: &'a GitAtomId, path: &'a Path, git: &'a GitContext) -> Self {
-        let prefix = format!("{}/{}", super::ATOM_REF_TOP_LEVEL, id);
+        let prefix = format!("{}/{}", super::ATOM_REF_TOP_LEVEL, id.id());
         Self {
             atom,
             id,

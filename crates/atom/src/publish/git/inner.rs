@@ -175,7 +175,12 @@ impl<'a> AtomContext<'a> {
             extra_headers: vec![
                 (
                     "path".into(),
-                    self.path.to_string_lossy().to_string().into(),
+                    self.path
+                        .parent()
+                        .unwrap_or(Path::new("/"))
+                        .to_string_lossy()
+                        .to_string()
+                        .into(),
                 ),
                 ("root".into(), self.id.root().to_hex().to_string().into()),
                 (

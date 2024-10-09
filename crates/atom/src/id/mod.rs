@@ -10,12 +10,16 @@ use std::str::FromStr;
 use thiserror::Error;
 use unic_ucd_category::GeneralCategory;
 
+const ID_MAX: usize = 128;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String")]
 pub struct Id(String);
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum IdError {
+    #[error("An atom id cannot be more than {} bytes", ID_MAX)]
+    TooLong,
     #[error("An atom id cannot be empty")]
     Empty,
     #[error("An atom id cannot start with: '{0}'")]
@@ -111,6 +115,10 @@ impl Id {
     }
 
     pub(super) fn validate(s: &str) -> Result<(), IdError> {
+        if s.len() > ID_MAX {
+            return Err(IdError::TooLong);
+        }
+
         match s.chars().next().map(Id::validate_start) {
             Some(Ok(_)) => (),
             Some(Err(e)) => return Err(e),
@@ -199,13 +207,22 @@ where
     for<'id> AtomId<R>: ComputeHash<'id, R>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.compute_hash())
+        let s = self.compute_hash();
+        if let Some(max_width) = f.precision() {
+            write!(f, "{:.width$}", s, width = max_width)
+        } else {
+            write!(f, "{}", s)
+        }
     }
 }
 
 impl<'a, R> Display for AtomHash<'a, R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-        write!(f, "{}", URL_SAFE_NO_PAD.encode(self.hash))
+        let s = base32::encode(crate::BASE32, &self.hash);
+        if let Some(max_width) = f.precision() {
+            write!(f, "{:.width$}", s, width = max_width)
+        } else {
+            f.write_str(&s)
+        }
     }
 }
