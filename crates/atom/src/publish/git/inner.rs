@@ -277,7 +277,7 @@ impl<'a> AtomReferences<'a> {
 }
 
 use gix::Object;
-/// Helper function to read a blob from an entry
+/// Helper function to read a blob from an object
 fn read_blob<F, R>(obj: &Object, mut f: F) -> GitResult<R>
 where
     F: FnMut(&mut dyn Read) -> io::Result<R>,

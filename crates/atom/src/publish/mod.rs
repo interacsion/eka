@@ -33,10 +33,20 @@ pub enum Content {
     Git(GitContent),
 }
 
-pub trait Builder<'a, R, S> {
+pub trait Builder<'a, R> {
     type Error;
     type Publisher: Publish<R>;
 
+    /// Collect all the atoms in the worktree into a set.
+    ///
+    /// This function must be called before `Publish::publish` to ensure that there are
+    /// no duplicates, as this is the only way to construct an implementation.
+    fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error>;
+}
+
+trait StateValidator<R> {
+    type Error;
+    type Publisher: Publish<R>;
     /// Collect all the atoms in the worktree into a set.
     ///
     /// This function is called during construction to ensure that we
@@ -46,15 +56,10 @@ pub trait Builder<'a, R, S> {
     /// result in an error, making it impossible to construct a publisher
     /// until the state is corrected.
     fn validate(publisher: &Self::Publisher) -> Result<ValidAtoms, Self::Error>;
-
-    /// Collect all the atoms in the worktree into a set.
-    ///
-    /// This function must be called before `Publish::publish` to ensure that there are
-    /// no duplicates, as this is the only way to construct an implementation.
-    fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error>;
 }
 
 mod private {
+    /// a marker trait to seal the [`Publish<R>`] trait
     pub trait Sealed {}
 }
 

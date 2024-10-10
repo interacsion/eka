@@ -123,15 +123,11 @@ fn calculate_capacity(record_count: usize) -> usize {
     (log_count * multiplier).ceil() as usize
 }
 
-impl<'a> Builder<'a, Root, Repository> for GitPublisher<'a> {
+use super::StateValidator;
+
+impl<'a> StateValidator<Root> for GitPublisher<'a> {
     type Error = GitError;
     type Publisher = GitContext<'a>;
-
-    fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error> {
-        let publisher = GitContext::set(self.source, self.remote, self.spec)?;
-        let atoms = GitPublisher::validate(&publisher)?;
-        Ok((atoms, publisher))
-    }
 
     fn validate(publisher: &Self::Publisher) -> Result<ValidAtoms, Self::Error> {
         use crate::publish::ATOM_EXT;
@@ -173,6 +169,17 @@ impl<'a> Builder<'a, Root, Repository> for GitPublisher<'a> {
         tracing::trace!(repo.atoms.valid.count = atoms.len());
 
         Ok(atoms)
+    }
+}
+
+impl<'a> Builder<'a, Root> for GitPublisher<'a> {
+    type Error = GitError;
+    type Publisher = GitContext<'a>;
+
+    fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error> {
+        let publisher = GitContext::set(self.source, self.remote, self.spec)?;
+        let atoms = GitPublisher::validate(&publisher)?;
+        Ok((atoms, publisher))
     }
 }
 
