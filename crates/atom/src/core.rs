@@ -7,15 +7,15 @@ use serde::{Deserialize, Serialize};
 /// Represents the deserialized form of an Atom, directly constructed from the TOML manifest.
 ///
 /// This struct contains the basic metadata of an Atom but lacks the context-specific
-/// `AtomId`, which must be constructed separately.
+/// [`crate::AtomId`], which must be constructed separately.
 pub struct Atom {
-    /// The verified Unicode identifier for the atom.
+    /// The verified, human-readable Unicode identifier for the Atom.
     pub id: Id,
 
-    /// The version of the atom.
+    /// The version of the Atom.
     pub version: Version,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    /// An optional description of the atom.
+    /// An optional description of the Atom.
     pub description: Option<String>,
 }

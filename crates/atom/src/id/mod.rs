@@ -1,3 +1,8 @@
+//! # Atom Identification Constructs
+//!
+//! This module contains the foundational types and logic for working with Atom
+//! identifiers. Atom IDs are a crucial component for unambiguously keeping track
+//! of Atoms from various sources without risk of collision or ambiguity.
 #[cfg(test)]
 mod tests;
 
@@ -18,13 +23,13 @@ pub struct Id(String);
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum IdError {
-    #[error("An atom id cannot be more than {} bytes", ID_MAX)]
+    #[error("An Atom id cannot be more than {} bytes", ID_MAX)]
     TooLong,
-    #[error("An atom id cannot be empty")]
+    #[error("An Atom id cannot be empty")]
     Empty,
-    #[error("An atom id cannot start with: '{0}'")]
+    #[error("An Atom id cannot start with: '{0}'")]
     InvalidStart(char),
-    #[error("The atom id contains invalid characters: '{0}'")]
+    #[error("The Atom id contains invalid characters: '{0}'")]
     InvalidCharacters(String),
 }
 
@@ -32,14 +37,21 @@ pub trait ComputeHash<'id, T>: Borrow<[u8]> {
     fn compute_hash(&'id self) -> AtomHash<'id, T>;
 }
 
-/// This trait must be implemented to construct new instances of an
-/// an AtomId. It tells the "compute" constructor how to calculate the
-/// value for the `root` field.
+/// This trait must be implemented to construct new instances of an an [`AtomId`].
+/// It tells the [`AtomId::compute`] constructor how to calculate the value for
+/// its `root` field.
 pub trait CalculateRoot<R> {
+    /// The error type returned by the [`CalculateRoot::calculate_root`] method.
     type Error;
+    /// The method used the calculate the root field for the [`AtomId`].
     fn calculate_root(&self) -> Result<R, Self::Error>;
 }
 
+/// The type representing all the components necessary to serve as
+/// an unambiguous identifier. Atoms consist of a human-readable
+/// Unicode identifier, as well as a root field, which varies for
+/// each store implementation. For example, Git uses the oldest
+/// commit in a repositories history.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AtomId<R> {
     root: R,
@@ -94,6 +106,8 @@ impl<R> AtomId<R>
 where
     for<'id> AtomId<R>: ComputeHash<'id, R>,
 {
+    /// Compute and construct an Atom's ID. This method takes a `src` type
+    /// which must implement a the [`CalculateRoot`] struct.
     pub fn compute<T>(src: &T, id: Id) -> Result<Self, T::Error>
     where
         T: CalculateRoot<R>,
@@ -101,6 +115,8 @@ where
         let root = src.calculate_root()?;
         Ok(AtomId { root, id })
     }
+    /// The root field, which serves as a derived key for the blake-3 hash used to
+    /// identify the Atom in backend implementations.
     pub fn root(&self) -> &R {
         &self.root
     }
@@ -197,6 +213,7 @@ impl TryFrom<&str> for Id {
 use std::fmt::Display;
 
 impl<R> AtomId<R> {
+    /// Return a reference to the Atom's Unicode identifier.
     pub fn id(&self) -> &Id {
         &self.id
     }

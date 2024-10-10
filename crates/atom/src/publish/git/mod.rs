@@ -1,3 +1,15 @@
+//! # Atom Publishing for a Git Store
+//!
+//! This module provides the types and logical necessary to efficienctly publish Atoms
+//! to a Git repository. Atom's are stored as orphaned git histories so they can be
+//! efficiently fetched. For trivial verification, an Atom's commit hash is made
+//! reproducible by using constants for the timestamps and meta-data.
+//!
+//! Additionally, a git reference is stored under the Atom's ref path to the original
+//! source, ensuring it is never garbage collected and an Atom can always be verified.
+//!
+//! A hexadecimal representation of the source commit is also stored in the reproducible
+//! Atom commit header, ensuring it is tied to its source in an unforgable manner.
 mod inner;
 
 use super::{error::GitError, Content, PublishOutcome, Record};
@@ -12,23 +24,25 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use tokio::task::JoinSet;
 
-pub type GitAtomId = AtomId<Root>;
+type GitAtomId = AtomId<Root>;
+/// The Outcome of an Atom publish attempt to a Git store.
 pub type GitOutcome = PublishOutcome<Root>;
+/// The Result type used for various methods during publishing to a Git store.
 pub type GitResult<T> = Result<T, GitError>;
 type GitRecord = Record<Root>;
 
 #[derive(Debug)]
-/// Holds the shared context needed for publishing atoms
+/// Holds the shared context needed for publishing Atoms.
 pub struct GitContext<'a> {
-    /// Reference to the repository we are publish from
+    /// Reference to the repository we are publish from.
     repo: &'a Repository,
-    /// The repository tree object for the given commit
+    /// The repository tree object for the given commit.
     tree: Tree<'a>,
-    /// The commit to publish from
+    /// The commit to publish from.
     commit: Commit<'a>,
-    /// Store the given remote name as a &str for convenient use
+    /// Store the given remote name as a &str for convenient use.
     remote_str: &'a str,
-    /// a JoinSet of push tasks to avoid blocking on them
+    /// a JoinSet of push tasks to avoid blocking on them.
     push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
 }
 
@@ -51,9 +65,9 @@ use gix::object::tree::Entry;
 /// Struct to hold the result of writing atom commits
 #[derive(Debug, Clone)]
 pub struct CommittedAtom {
-    /// the raw structure representing the atom that was successfully committed
+    /// The raw structure representing the atom that was successfully committed.
     commit: AtomCommit,
-    /// The object id of the tip of the atom's history
+    /// The object id of the Atom commit.
     id: ObjectId,
 }
 
@@ -90,15 +104,18 @@ pub(super) struct AtomReferences<'a> {
     origin: Reference<'a>,
 }
 
+/// The Git specific content which will be returned for presenting to the user after
+/// an Atom is successfully published.
 pub struct GitContent {
     spec: gix::refs::Reference,
-    tip: gix::refs::Reference,
+    content: gix::refs::Reference,
     path: PathBuf,
     ref_prefix: String,
 }
 
 use super::{Builder, ValidAtoms};
 
+/// The type representing a Git specific Atom publisher.
 pub struct GitPublisher<'a> {
     source: &'a Repository,
     remote: &'a str,
@@ -106,6 +123,7 @@ pub struct GitPublisher<'a> {
 }
 
 impl<'a> GitPublisher<'a> {
+    /// Constructs a new [`GitPublisher`].
     pub fn new(source: &'a Repository, remote: &'a str, spec: &'a str) -> Self {
         GitPublisher {
             source,
@@ -184,15 +202,19 @@ impl<'a> Builder<'a, Root> for GitPublisher<'a> {
 }
 
 impl GitContent {
+    /// Return a reference to the Atom spec Git ref.
     pub fn spec(&self) -> &gix::refs::Reference {
         &self.spec
     }
-    pub fn tip(&self) -> &gix::refs::Reference {
-        &self.tip
+    /// Return a reference to the Atom content ref.
+    pub fn content(&self) -> &gix::refs::Reference {
+        &self.content
     }
+    /// Return a reference to the path to the Atom.
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
+    /// Return a reference to the atom ref prefix.
     pub fn ref_prefix(&self) -> &String {
         &self.ref_prefix
     }
@@ -313,6 +335,10 @@ impl<'a> GitContext<'a> {
         })
     }
 
+    /// A method used to await the results of the concurrently running Git pushes,
+    /// which were offloaded to a seperate thread of execution of Tokio's runtime.
+    ///
+    /// An errors that occurred will be collected into a [`Vec`].
     pub async fn await_pushes(&self, errors: &mut Vec<GitError>) {
         use tokio::sync::Mutex;
 
@@ -335,6 +361,7 @@ impl<'a> GitContext<'a> {
         }
     }
 
+    /// Return a reference to the git tree object of the commit the Atom originates from.
     pub fn tree(&self) -> Tree<'a> {
         self.tree.clone()
     }

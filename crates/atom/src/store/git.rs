@@ -1,3 +1,10 @@
+//! # Atom Git Store
+//!
+//! This module contains the foundational types for the Git implementation of an Ekala store.
+//!
+//! In particular, the implementation to initialize ([`Init`]) a Git repository as an Ekala store
+//! is contained here, as well as the type representing the [`Root`] of history used for an
+//! [`crate::AtomId`].
 #[cfg(test)]
 mod test;
 
@@ -12,32 +19,46 @@ use gix::{
 use std::sync::OnceLock;
 use thiserror::Error as ThisError;
 
+/// An error encountered during initialization or other git store operations.
 #[derive(ThisError, Debug)]
 pub enum Error {
+    /// No git ref found.
     #[error("No ref named `{0}` found for remote `{1}`")]
     NoRef(String, String),
+    /// This git repository does not have a working directory.
     #[error("Repository does not have a working directory")]
     NoWorkDir,
+    /// The repository root calculation failed.
     #[error("Failed to calculate the repositories root commit")]
     RootNotFound,
+    /// A transparent wrapper for a [`gix::revision::walk::Error`]
     #[error(transparent)]
     WalkFailure(#[from] gix::revision::walk::Error),
+    /// A transparent wrapper for a [`std::io::Error`]
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    /// A transparent wrapper for a [`std::path::StripPrefixError`]
     #[error(transparent)]
     NormalizationFailed(#[from] std::path::StripPrefixError),
+    /// A transparent wrapper for a [`Box<gix::remote::find::existing::Error>`]
     #[error(transparent)]
     NoRemote(#[from] Box<gix::remote::find::existing::Error>),
+    /// A transparent wrapper for a [`Box<gix::remote::connect::Error>`]
     #[error(transparent)]
     Connect(#[from] Box<gix::remote::connect::Error>),
+    /// A transparent wrapper for a [`Box<gix::remote::fetch::prepare::Error>`]
     #[error(transparent)]
     Refs(#[from] Box<gix::remote::fetch::prepare::Error>),
+    /// A transparent wrapper for a [`Box<gix::remote::fetch::Error>`]
     #[error(transparent)]
     Fetch(#[from] Box<gix::remote::fetch::Error>),
+    /// A transparent wrapper for a [`Box<gix::object::find::existing::with_conversion::Error>`]
     #[error(transparent)]
     NoCommit(#[from] Box<gix::object::find::existing::with_conversion::Error>),
+    /// A transparent wrapper for a [`Box<gix::refspec::parse::Error>`]
     #[error(transparent)]
     AddRefFailed(#[from] Box<gix::refspec::parse::Error>),
+    /// A transparent wrapper for a [`Box<gix::reference::edit::Error>`]
     #[error(transparent)]
     WriteRef(#[from] Box<gix::reference::edit::Error>),
 }
@@ -48,9 +69,13 @@ static REPO: OnceLock<Option<ThreadSafeRepository>> = OnceLock::new();
 use std::borrow::Cow;
 static DEFAULT_REMOTE: OnceLock<Cow<str>> = OnceLock::new();
 
+/// The wrapper type unambiguously identifying the underlying type which will be used to represent
+/// the "root" identifier for an [`crate::AtomId`]. In the case of the git implementation, this is an object
+/// id representing the original commit made in the repositories history.
 #[derive(Clone)]
 pub struct Root(ObjectId);
 
+/// Return a static reference the the local Git repository.
 pub fn repo() -> Result<Option<&'static ThreadSafeRepository>, Box<gix::discover::Error>> {
     let mut error = None;
     let repo = REPO.get_or_init(|| match get_repo() {
@@ -68,6 +93,10 @@ pub fn repo() -> Result<Option<&'static ThreadSafeRepository>, Box<gix::discover
 }
 
 use std::io;
+/// Run's the git binary, returning the output or the err, depending on the return value.
+///
+/// Note: We rely on this only for operations that are not yet implemented in GitOxide.
+///       Once push is implemented upstream, we can, and should, remove this.
 pub fn run_git_command(args: &[&str]) -> io::Result<Vec<u8>> {
     use std::process::Command;
     let output = Command::new("git").args(args).output()?;
@@ -90,6 +119,7 @@ fn get_repo() -> Result<ThreadSafeRepository, Box<gix::discover::Error>> {
     ThreadSafeRepository::discover_opts(".", opts, Mapping::default()).map_err(Box::new)
 }
 
+/// Return a static reference to the default remote configured for pushing
 pub fn default_remote() -> &'static str {
     use gix::remote::Direction;
     DEFAULT_REMOTE
@@ -200,8 +230,8 @@ const V1_ROOT: &str = "refs/tags/ekala/root/v1";
 use super::Init;
 impl<'repo> Init<ObjectId> for gix::Remote<'repo> {
     type Error = Error;
-    /// Determines if this remote is a valid Ekala store by pulling HEAD and [`V1_ROOT`]
-    /// and ensuring the latter is actually the root of HEAD.
+    /// Determines if this remote is a valid Ekala store by pulling HEAD and the root
+    /// tag, ensuring the latter is actually the root of HEAD.
     fn is_ekala_store(&self) -> bool {
         use crate::id::CalculateRoot;
 
@@ -274,10 +304,10 @@ impl<'repo> Init<ObjectId> for gix::Remote<'repo> {
     }
 }
 
-pub type ProgressRange = std::ops::RangeInclusive<prodash::progress::key::Level>;
-pub const STANDARD_RANGE: ProgressRange = 2..=2;
+type ProgressRange = std::ops::RangeInclusive<prodash::progress::key::Level>;
+const STANDARD_RANGE: ProgressRange = 2..=2;
 
-pub fn setup_line_renderer(
+fn setup_line_renderer(
     progress: &std::sync::Arc<prodash::tree::Root>,
 ) -> prodash::render::line::JoinHandle {
     prodash::render::line(

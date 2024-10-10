@@ -1,16 +1,25 @@
+//! # Atom Store Interface
 pub mod git;
 use std::path::{Path, PathBuf};
 
 use bstr::BStr;
 
+/// A trait representing the methods required to initialize an Ekala store.
 pub trait Init<R> {
+    /// The error type returned by the methods of this trait.
     type Error;
+    /// Sync with the Ekala store, for implementations that require it.
     fn sync(&self) -> Result<R, Self::Error>;
+    /// Initialize the Ekala store.
     fn ekala_init(&self) -> Result<(), Self::Error>;
+    /// Returns a [`bool`] signifying whether the store has already been initialized.
     fn is_ekala_store(&self) -> bool;
 }
 
+/// A trait containing a path normalization method, to normalize paths in an Ekala store
+/// relative to its root.
 pub trait NormalizeStorePath {
+    /// The error type returned by the [`NormalizeStorePath::normalize`] function.
     type Error;
     /// Normalizes a given path to be relative to the store root.
     ///

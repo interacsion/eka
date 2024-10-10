@@ -1,3 +1,18 @@
+//! # Atom URI Format
+//!
+//! An Atom URI of the form:
+//! ```text
+//! [scheme://][alias:][url-fragment::]atom-id[@version]
+//! ```
+//!
+//! An `alias` is a user configurable URL shortener that must at least contain an FQDN or host,
+//! and as much of the url path as desirable. Aliases can be specified in the eka configuration
+//! file for the CLI program. See the Atom configuration crate for further detail.
+//!
+//! ## Examples
+//! * `gh:owner/repo::my-atom` where `hub` is `github.com`
+//! * `work:repo::my-atom` where `work` is `github.com/my-work-org`
+//! * `repo::my-atom@^1` where `repo` is `example.com/some/repo`
 #[cfg(test)]
 mod tests;
 
@@ -18,25 +33,16 @@ use thiserror::Error;
 #[derive(Debug)]
 struct Aliases(&'static HashMap<&'static str, &'static str>);
 
-/// Represents the parsed components of an atom reference URI.
-///
-/// This struct is an intermediate representation resulting from parsing a URI string
-/// in the format: `[scheme://][alias:][url-fragment::]atom-id[@version]`
+/// Represents the parsed components of an Atom URI.
 ///
 /// It is typically created through the `FromStr` implementation, not constructed directly.
-///
-/// # Components
-///
-/// * `url`: URL to the repository containing the atom.
-/// * `id`: The atom ID specced in the TOML manifest as `atom.id`.
-/// * `version`: The requested atom version. Optional.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Uri {
-    /// The URL to the repository containing the atom
+    /// The URL to the repository containing the Atom.
     url: Option<Url>,
-    /// The atom's ID
+    /// The Atom's ID.
     id: Id,
-    /// The requested atom version
+    /// The requested Atom version.
     version: Option<VersionReq>,
 }
 
@@ -64,9 +70,9 @@ struct UrlRef<'a> {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Serialize, Deserialize))]
 struct AtomRef<'a> {
-    /// The path to the specific atom within the repository.
+    /// The path to the specific Atom within the repository.
     id: Option<&'a str>,
-    /// The version of the atom, if specified.
+    /// The version of the Atom, if specified.
     version: Option<&'a str>,
 }
 
@@ -229,19 +235,26 @@ impl<'a> From<&'a str> for Ref<'a> {
     }
 }
 
+/// A error encountered when constructing the concrete types from an Atom URI
 #[derive(Error, Debug)]
 pub enum UriError {
+    /// An alias uses the same validation logic as the Unicode Atom identifier.
     #[error(transparent)]
     AliasValidation(#[from] IdError),
+    /// The version requested is not valid.
     #[error(transparent)]
     InvalidVersionReq(#[from] semver::Error),
+    /// The Url did not parse correctly.
     #[error(transparent)]
     UrlParse(#[from] gix::url::parse::Error),
+    /// There is no alias in the configuration matching the one given in the URI.
     #[error("The passed alias does not exist: {0}")]
     NoAlias(String),
+    /// The Url is invalid
     #[error("Parsing URL failed")]
     NoUrl,
-    #[error("Missing atom ID in URI")]
+    #[error("Missing the required Atom ID in URI")]
+    /// The Atom identifier is missing, but required
     NoAtom,
 }
 
@@ -473,12 +486,15 @@ impl std::fmt::Display for Uri {
 }
 
 impl Uri {
+    /// Returns a reference to the Url parsed out of the Atom URI.
     pub fn url(&self) -> Option<&Url> {
         self.url.as_ref()
     }
+    /// Returns the Atom identifier parsed from the URI.
     pub fn id(&self) -> &Id {
         &self.id
     }
+    /// Returns the Atom version parsed from the URI.
     pub fn version(&self) -> Option<&VersionReq> {
         self.version.as_ref()
     }

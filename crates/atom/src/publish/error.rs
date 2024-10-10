@@ -1,56 +1,82 @@
+//! # Publishing Errors
+//!
+//! This module contains the error types for errors that might occur during publishing.
 use gix::object;
 use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+/// The error representing a failure during publishing for any store implementation.
 pub enum PublishError {
+    /// A transparent wrapper for a [`GitError`].
     #[error(transparent)]
     Git(#[from] GitError),
 }
 
+/// An error representing a failure during publishing to a Git Ekala store.
 #[derive(Error, Debug)]
 pub enum GitError {
+    /// A transparent wrapper for a [`Box<gix::remote::find::existing::Error>`]
     #[error(transparent)]
     RemotNotFound(#[from] Box<gix::remote::find::existing::Error>),
+    /// A transparent wrapper for a [`Box<gix::revision::spec::parse::single::Error>`]
     #[error(transparent)]
     RevParseFailed(#[from] Box<gix::revision::spec::parse::single::Error>),
+    /// A transparent wrapper for a [`object::find::existing::with_conversion::Error`]
     #[error(transparent)]
     NoCommit(#[from] object::find::existing::with_conversion::Error),
+    /// A transparent wrapper for a [`object::commit::Error`]
     #[error(transparent)]
     NoTree(#[from] object::commit::Error),
+    /// A transparent wrapper for a [`object::find::existing::Error`]
     #[error(transparent)]
     NoObject(#[from] object::find::existing::Error),
+    /// A transparent wrapper for a [`object::write::Error`]
     #[error(transparent)]
     WriteFailed(#[from] object::write::Error),
+    /// A transparent wrapper for a [`gix::reference::edit::Error`]
     #[error(transparent)]
     RefUpdateFailed(#[from] gix::reference::edit::Error),
+    /// A transparent wrapper for a [`gix::revision::walk::Error`]
     #[error(transparent)]
     CalculatingRootFailed(#[from] gix::revision::walk::Error),
+    /// A transparent wrapper for a [`gix::traverse::commit::simple::Error`]
     #[error(transparent)]
     RootConversionFailed(#[from] gix::traverse::commit::simple::Error),
+    /// A transparent wrapper for a [`std::io::Error`]
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    /// A transparent wrapper for a [`tokio::task::JoinError`]
     #[error(transparent)]
     JoinFailed(#[from] tokio::task::JoinError),
+    /// The remote is not initialized as an Ekala store.
     #[error("Remote is not initialized")]
     NotInitialized,
-    #[error("Ignoring invalid atom manifest")]
+    /// The Atom manifest is invalid, and this Atom will be ignored.
+    #[error("Ignoring invalid Atom manifest")]
     Invalid(#[source] crate::manifest::AtomError, Box<PathBuf>),
-    #[error("The given path does not point to an atom")]
+    /// The path given does not point to an Atom.
+    #[error("The given path does not point to an Atom")]
     NotAFile(PathBuf),
-    #[error("Failed to sync some atoms to the remote")]
+    /// Failed to sync a least one Atom to the remote.
+    #[error("Failed to sync some Atoms to the remote")]
     SomePushFailed,
-    #[error("Failed to published some of the specified atoms")]
+    /// Some Atoms failed to publish
+    #[error("Failed to published some of the specified Atoms")]
     Failed,
+    /// A transparent wrapper for a [`crate::store::git::Error`]
     #[error(transparent)]
     StoreError(#[from] crate::store::git::Error),
-    #[error("Failed to find any atoms under the current directory")]
+    /// No Atoms found under the given directory.
+    #[error("Failed to find any Atoms under the current directory")]
     NotFound,
-    #[error("Duplicate atoms detected in the given revision, refusing to publish")]
+    /// Atoms with the same Unicode ID were found in the given revision.
+    #[error("Duplicate Atoms detected in the given revision, refusing to publish")]
     Duplicates,
 }
 
 impl GitError {
+    /// Warn the user about specific error conditions encountered during publishing.
     pub fn warn(&self) {
         match self {
             GitError::Invalid(e, path) => {

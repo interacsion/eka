@@ -269,7 +269,7 @@ impl<'a> AtomReferences<'a> {
 
         GitContent {
             spec: self.spec.detach(),
-            tip: self.content.detach(),
+            content: self.content.detach(),
             path: atom.path.to_path_buf(),
             ref_prefix: atom.ref_prefix.clone(),
         }
@@ -296,9 +296,11 @@ fn atom_entry(entry: &Entry) -> AtomEntry {
 }
 
 impl CommittedAtom {
+    /// Return a reference to the commit object representing the committed Atom.
     pub fn commit(&self) -> &AtomCommit {
         &self.commit
     }
+    /// Return a reference to the object ID of the committed Atom.
     pub fn tip(&self) -> &ObjectId {
         &self.id
     }
