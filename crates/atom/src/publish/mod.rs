@@ -42,19 +42,23 @@ pub trait Builder<'a, R, S> {
     /// This function is called during construction to ensure that we
     /// never allow for an inconsistent state in the final atom store.
     ///
-    /// The ensure this absolute, this function will panic if any two
-    /// atoms in the same worktree have the same Id. This is to ensure
-    /// that atoms have dinstinct identities in a given store.
+    /// Any conditions that would result in an inconsistent state will
+    /// result in an error, making it impossible to construct a publisher
+    /// until the state is corrected.
     fn validate(publisher: &Self::Publisher) -> Result<ValidAtoms, Self::Error>;
 
     /// Collect all the atoms in the worktree into a set.
     ///
-    /// This function should be called before `Publish::publish` to ensure that there are
-    /// no duplicates.
+    /// This function must be called before `Publish::publish` to ensure that there are
+    /// no duplicates, as this is the only way to construct an implementation.
     fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error>;
 }
 
-pub trait Publish<R> {
+mod private {
+    pub trait Sealed {}
+}
+
+pub trait Publish<R>: private::Sealed {
     type Error;
 
     /// Publishes atoms.
@@ -96,11 +100,12 @@ impl<R> Record<R> {
     }
 }
 
+pub const ATOM_EXT: &str = "atom";
 /// The current version of the atom ref format
 const EMPTY_SIG: &str = "";
 const ATOM_FORMAT_VERSION: &str = "1";
 /// the namespace under refs to publish atoms
 const ATOM_REF_TOP_LEVEL: &str = "atoms";
-const ATOM_ORIGIN: &str = "source";
-const ATOM_MANIFEST: &str = "blueprint";
-pub const ATOM_EXT: &str = "atom";
+const ATOM_MANIFEST: &str = "spec";
+const ATOM_ORIGIN: &str = "src";
+const ATOM_LOCK: &str = "lock";

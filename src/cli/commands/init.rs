@@ -21,7 +21,13 @@ pub(super) fn run(store: Option<Detected>, args: Args) -> Result<(), git::Error>
     use atom::store::Init;
     if let Some(store) = store {
         match store {
-            Detected::Git(repo) => repo.to_thread_local().ekala_init(args.git.remote)?,
+            Detected::Git(repo) => {
+                let repo = repo.to_thread_local();
+                let remote = repo
+                    .find_remote(args.git.remote.as_str())
+                    .map_err(Box::new)?;
+                remote.ekala_init()?
+            }
         }
     }
     Ok(())

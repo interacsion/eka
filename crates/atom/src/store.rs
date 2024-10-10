@@ -1,13 +1,13 @@
 pub mod git;
 use std::path::{Path, PathBuf};
 
-pub trait StoreRoot {}
+use bstr::BStr;
 
 pub trait Init<R> {
     type Error;
-    fn sync(&self, target: &str) -> Result<R, Self::Error>;
-    fn ekala_init(&self, target: String) -> Result<(), Self::Error>;
-    fn is_ekala_store(&self, target: &str) -> bool;
+    fn sync(&self) -> Result<R, Self::Error>;
+    fn ekala_init(&self) -> Result<(), Self::Error>;
+    fn is_ekala_store(&self) -> bool;
 }
 
 pub trait NormalizeStorePath {
@@ -27,4 +27,17 @@ pub trait NormalizeStorePath {
     ///   - Treated as if the repository root is the filesystem root.
     ///   - The leading slash is ignored, and the path is considered relative to the repo root.
     fn normalize<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, Self::Error>;
+}
+
+pub trait QueryStore<Id> {
+    type Error;
+    fn get_refs<Spec>(
+        &self,
+        targets: impl IntoIterator<Item = Spec>,
+    ) -> Result<impl IntoIterator<Item = Id>, Self::Error>
+    where
+        Spec: AsRef<BStr>;
+    fn get_ref<Spec>(&self, target: Spec) -> Result<Id, Self::Error>
+    where
+        Spec: AsRef<BStr>;
 }

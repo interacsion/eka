@@ -3,6 +3,7 @@ mod test;
 
 use crate::id::CalculateRoot;
 
+use bstr::BStr;
 use gix::{
     discover::upwards::Options,
     sec::{trust::Mapping, Trust},
@@ -47,6 +48,7 @@ static REPO: OnceLock<Option<ThreadSafeRepository>> = OnceLock::new();
 use std::borrow::Cow;
 static DEFAULT_REMOTE: OnceLock<Cow<str>> = OnceLock::new();
 
+#[derive(Clone)]
 pub struct Root(ObjectId);
 
 pub fn repo() -> Result<Option<&'static ThreadSafeRepository>, Box<gix::discover::Error>> {
@@ -143,7 +145,7 @@ impl<'a> CalculateRoot<Root> for Commit<'a> {
     }
 }
 
-use super::NormalizeStorePath;
+use super::{NormalizeStorePath, QueryStore};
 use gix::Repository;
 use std::path::{Path, PathBuf};
 
@@ -196,27 +198,63 @@ impl AsRef<[u8]> for Root {
 const V1_ROOT: &str = "refs/tags/ekala/root/v1";
 
 use super::Init;
-impl Init<ObjectId> for Repository {
+impl<'repo> Init<ObjectId> for gix::Remote<'repo> {
     type Error = Error;
-    fn is_ekala_store(&self, remote: &str) -> bool {
-        get_ref(self, remote, V1_ROOT)
-            .map_err(|e| tracing::warn!(message = %e))
-            .is_ok()
+    /// Determines if this remote is a valid Ekala store by pulling HEAD and [`V1_ROOT`]
+    /// and ensuring the latter is actually the root of HEAD.
+    fn is_ekala_store(&self) -> bool {
+        use crate::id::CalculateRoot;
+
+        let repo = self.repo();
+        self.get_refs(["HEAD", V1_ROOT])
+            .map(|i| {
+                let mut i = i.into_iter();
+                let fst = i
+                    .next()
+                    .and_then(|id| repo.find_commit(id).ok())
+                    .and_then(|c| {
+                        (c.parent_ids().count() != 0)
+                            .then(|| c.calculate_root().ok().map(|r| *r))
+                            .unwrap_or(Some(c.id))
+                    });
+                let snd = i
+                    .next()
+                    .and_then(|id| repo.find_commit(id).ok())
+                    .and_then(|c| {
+                        (c.parent_ids().count() != 0)
+                            .then(|| c.calculate_root().ok().map(|r| *r))
+                            .unwrap_or(Some(c.id))
+                    });
+                fst == snd
+            })
+            .unwrap_or(false)
     }
     /// Sync with the given remote and get the most up to date HEAD according to it.
-    fn sync(&self, remote: &str) -> Result<ObjectId, Error> {
-        get_ref(self, remote, "HEAD")
+    fn sync(&self) -> Result<ObjectId, Error> {
+        self.get_ref("HEAD")
     }
 
     /// Initialize the repository by calculating the root, according to the latest HEAD.
-    fn ekala_init(&self, remote: String) -> Result<(), Error> {
-        let head = self.sync(remote.as_str())?;
+    fn ekala_init(&self) -> Result<(), Error> {
+        use gix::remote::Name;
+        // fail early if the remote is not persistented to disk
+        let name = self
+            .name()
+            .and_then(Name::as_symbol)
+            .ok_or(Error::NoRemote(Box::new(
+                gix::remote::find::existing::Error::NotFound {
+                    name: "<unamed>".into(),
+                },
+            )))?;
+
+        let head = self.sync()?;
 
         use crate::CalculateRoot;
-        let root = *self.find_commit(head).map_err(Box::new)?.calculate_root()?;
+        let repo = self.repo();
+        let root = *repo.find_commit(head).map_err(Box::new)?.calculate_root()?;
 
         use gix::refs::transaction::PreviousValue;
-        let root_ref = self
+        let root_ref = repo
             .reference(V1_ROOT, root, PreviousValue::MustNotExist, "init: root")
             .map_err(Box::new)?
             .name()
@@ -226,12 +264,12 @@ impl Init<ObjectId> for Repository {
         // FIXME: use gix for push once it supports it
         run_git_command(&[
             "-C",
-            self.git_dir().to_string_lossy().as_ref(),
+            repo.git_dir().to_string_lossy().as_ref(),
             "push",
-            remote.as_str(),
+            name,
             format!("{}:{}", root_ref, root_ref).as_str(),
         ])?;
-        tracing::info!(remote, message = "Successfully initialized");
+        tracing::info!(remote = name, message = "Successfully initialized");
         Ok(())
     }
 }
@@ -255,47 +293,84 @@ pub fn setup_line_renderer(
     )
 }
 
-fn get_ref(repo: &Repository, remote_str: &str, reference: &str) -> Result<ObjectId, Error> {
-    use gix::remote::{fetch::Tags, Direction};
+impl<'repo> super::QueryStore<ObjectId> for gix::Remote<'repo> {
+    type Error = Error;
+    /// returns the git object ids for the given references
+    fn get_refs<Spec>(
+        &self,
+        references: impl IntoIterator<Item = Spec>,
+    ) -> Result<impl IntoIterator<Item = gix::ObjectId>, Self::Error>
+    where
+        Spec: AsRef<BStr>,
+    {
+        use gix::remote::{fetch::Tags, Direction};
+        use std::collections::HashSet;
 
-    use gix::progress::tree::Root;
+        use gix::progress::tree::Root;
 
-    let tree = Root::new();
-    let sync_progress = tree.add_child("sync");
-    let init_progress = tree.add_child("init");
-    let handle = setup_line_renderer(&tree);
+        let tree = Root::new();
+        let sync_progress = tree.add_child("sync");
+        let init_progress = tree.add_child("init");
+        let handle = setup_line_renderer(&tree);
 
-    let mut remote = repo
-        .find_remote(remote_str)
-        .map_err(Box::new)?
-        .with_fetch_tags(Tags::None);
-    remote
-        .replace_refspecs(Some(format!("+{}", reference).as_str()), Direction::Fetch)
-        .map_err(Box::new)?;
+        let mut remote = self.clone().with_fetch_tags(Tags::None);
 
-    use gix::remote::ref_map::Options;
-    let client = remote.connect(Direction::Fetch).map_err(Box::new)?;
-    let sync = client
-        .prepare_fetch(sync_progress, Options::default())
-        .map_err(Box::new)?;
+        remote
+            .replace_refspecs(references, Direction::Fetch)
+            .map_err(Box::new)?;
 
-    use std::sync::atomic::AtomicBool;
-    let outcome = sync
-        .receive(init_progress, &AtomicBool::new(false))
-        .map_err(Box::new)?;
+        let requested: HashSet<_> = remote
+            .refspecs(Direction::Fetch)
+            .iter()
+            .filter_map(|r| r.to_ref().source().map(ToOwned::to_owned))
+            .collect();
 
-    handle.shutdown_and_wait();
+        use gix::remote::ref_map::Options;
+        let client = remote.connect(Direction::Fetch).map_err(Box::new)?;
+        let sync = client
+            .prepare_fetch(sync_progress, Options::default())
+            .map_err(Box::new)?;
 
-    let refs = outcome.ref_map.remote_refs;
+        use std::sync::atomic::AtomicBool;
+        let outcome = sync
+            .receive(init_progress, &AtomicBool::new(false))
+            .map_err(Box::new)?;
 
-    refs.iter()
-        .find(|r| {
-            let (name, _, _) = r.unpack();
-            name == reference
+        handle.shutdown_and_wait();
+
+        let refs = outcome.ref_map.remote_refs;
+
+        refs.iter()
+            .filter_map(|r| {
+                let (name, target, peeled) = r.unpack();
+                requested.get(name)?;
+                Some(peeled.or(target).map(ToOwned::to_owned).ok_or_else(|| {
+                    Error::NoRef(
+                        name.to_string(),
+                        remote
+                            .name()
+                            .and_then(|n| n.as_symbol())
+                            .unwrap_or("<unamed>")
+                            .into(),
+                    )
+                }))
+            })
+            .collect::<Result<HashSet<_>, _>>()
+    }
+
+    fn get_ref<Spec>(&self, target: Spec) -> Result<ObjectId, Self::Error>
+    where
+        Spec: AsRef<BStr>,
+    {
+        let name = target.as_ref().to_string();
+        self.get_refs(Some(target)).and_then(|r| {
+            r.into_iter().next().ok_or(Error::NoRef(
+                name,
+                self.name()
+                    .and_then(|n| n.as_symbol())
+                    .unwrap_or("<unamed>")
+                    .into(),
+            ))
         })
-        .and_then(|r| {
-            let (_, target, peeled) = r.unpack();
-            peeled.or(target).map(ToOwned::to_owned)
-        })
-        .ok_or_else(|| Error::NoRef(reference.to_owned(), remote_str.to_owned()))
+    }
 }

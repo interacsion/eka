@@ -30,22 +30,19 @@ pub struct GitContext<'a> {
     remote_str: &'a str,
     /// a JoinSet of push tasks to avoid blocking on them
     push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
-    // a JoinSet of publish jobs, allowing us to publish a large number of atoms in parallel
-    // publish_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
 }
 
 struct AtomContext<'a> {
-    atom: &'a Atom,
-    id: &'a GitAtomId,
+    atom: FoundAtom<'a>,
     path: &'a Path,
     ref_prefix: String,
     git: &'a GitContext<'a>,
 }
 
 struct FoundAtom<'a> {
-    atom: Atom,
+    spec: Atom,
     id: GitAtomId,
-    entry: Entry<'a>,
+    entries: AtomEntries<'a>,
 }
 
 use gix::diff::object::Commit as AtomCommit;
@@ -57,23 +54,19 @@ pub struct CommittedAtom {
     /// the raw structure representing the atom that was successfully committed
     commit: AtomCommit,
     /// The object id of the tip of the atom's history
-    tip: ObjectId,
-    /// A reference back to the original commit which the blob objects in the atom are referenced from
-    src: ObjectId,
+    id: ObjectId,
 }
+
+use smallvec::SmallVec;
+type AtomEntries<'a> = SmallVec<[Entry<'a>; 3]>;
 
 /// Struct to representing the tree of an atom given by the Git object ID of its contents
-struct AtomTreeIds {
-    /// the object id of the tree containing only the atom's toml manifest and lock file
-    spec: ObjectId,
-    /// the object id of the tree representing the optional atom directory, if present
-    dir: Option<ObjectId>,
-}
+struct AtomTreeId(ObjectId);
 
 enum RefKind {
-    Manifest,
+    Spec,
     Content,
-    Source,
+    Origin,
 }
 
 use semver::Version;
@@ -89,18 +82,17 @@ use gix::Reference;
 #[derive(Debug, Clone)]
 /// Struct representing the git refs pointing to the atom's parts
 pub(super) struct AtomReferences<'a> {
-    /// Git ref pointing to the atom's manifest and lock
-    manifest: Reference<'a>,
-    /// The git ref pointing to the tip of the atom's history
+    /// The git ref pointing to the atoms content
     content: Reference<'a>,
-    /// The git ref pointing to the commit the atom's blob objects are referenced from
-    source: Reference<'a>,
+    /// Git ref pointing to the tree object containing the atom's manifest and lock
+    spec: Reference<'a>,
+    /// The git ref pointing the commit the atom was published from
+    origin: Reference<'a>,
 }
 
 pub struct GitContent {
     spec: gix::refs::Reference,
     tip: gix::refs::Reference,
-    src: gix::refs::Reference,
     path: PathBuf,
     ref_prefix: String,
 }
@@ -191,9 +183,6 @@ impl GitContent {
     pub fn tip(&self) -> &gix::refs::Reference {
         &self.tip
     }
-    pub fn src(&self) -> &gix::refs::Reference {
-        &self.src
-    }
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
@@ -205,6 +194,8 @@ impl GitContent {
 use super::Publish;
 use crate::id::Id;
 use std::collections::HashMap;
+
+impl<'a> super::private::Sealed for GitContext<'a> {}
 
 impl<'a> Publish<Root> for GitContext<'a> {
     type Error = GitError;
@@ -259,39 +250,35 @@ impl<'a> Publish<Root> for GitContext<'a> {
         use Err as Skipped;
         use Ok as Published;
 
-        let blueprint = path.as_ref();
-        let dir = blueprint.with_extension("");
+        let spec = path.as_ref();
+        let dir = spec.with_extension("");
+        let atom = self.find_and_verify_atom(spec)?;
+        let this = AtomContext::set(atom, &dir, self);
 
-        let FoundAtom { atom, id, entry } = self.find_and_verify_atom(blueprint)?;
-
-        let atom = AtomContext::set(&atom, &id, &dir, self);
-        let atom_dir_entry = atom.maybe_dir();
-
-        let tree_ids = match atom.write_atom_trees(&entry, atom_dir_entry)? {
+        let tree_id = match this.write_atom_tree(this.atom.entries.clone())? {
             Ok(t) => t,
             Skipped(id) => return Ok(Skipped(id)),
         };
 
-        let refs = atom
-            .write_atom_commits(tree_ids)?
-            .write_refs(&atom)?
-            .push(&atom);
+        let refs = this
+            .write_atom_commit(tree_id)?
+            .write_refs(&this)?
+            .push(&this);
 
         Ok(Published(GitRecord {
-            id,
+            id: this.atom.id.clone(),
             content: Content::Git(refs),
         }))
     }
 }
 
 impl<'a> AtomContext<'a> {
-    fn set(atom: &'a Atom, id: &'a GitAtomId, path: &'a Path, git: &'a GitContext) -> Self {
-        let prefix = format!("{}/{}", super::ATOM_REF_TOP_LEVEL, id.id());
+    fn set(atom: FoundAtom<'a>, path: &'a Path, git: &'a GitContext) -> Self {
+        let ref_prefix = format!("{}/{}", super::ATOM_REF_TOP_LEVEL, atom.id.id());
         Self {
             atom,
-            id,
             path,
-            ref_prefix: prefix,
+            ref_prefix,
             git,
         }
     }

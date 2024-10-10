@@ -47,7 +47,12 @@ pub(super) async fn run(
     let repo = repo.to_thread_local();
 
     let GitArgs { remote, spec } = args.store.git;
-    if !repo.is_ekala_store(remote.as_str()) {
+
+    if !repo
+        .find_remote(remote.as_str())
+        .map_err(Box::new)?
+        .is_ekala_store()
+    {
         return Err(GitError::NotInitialized);
     };
 
