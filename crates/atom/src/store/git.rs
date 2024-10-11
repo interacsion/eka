@@ -31,6 +31,9 @@ pub enum Error {
     /// The repository root calculation failed.
     #[error("Failed to calculate the repositories root commit")]
     RootNotFound,
+    /// The calculated root does not match what was reported by the remote.
+    #[error("The calculated root does not match the reported one")]
+    RootInconsistent,
     /// A transparent wrapper for a [`gix::revision::walk::Error`]
     #[error(transparent)]
     WalkFailure(#[from] gix::revision::walk::Error),
@@ -225,39 +228,61 @@ impl AsRef<[u8]> for Root {
     }
 }
 
+trait EkalaRemote {
+    type Error;
+    const ANONYMOUS: &str = "<unamed>";
+    fn try_symbol(&self) -> Result<&str, Self::Error>;
+    fn symbol(&self) -> &str {
+        self.try_symbol().unwrap_or(Self::ANONYMOUS)
+    }
+}
+
+impl<'repo> EkalaRemote for gix::Remote<'repo> {
+    type Error = Error;
+    fn try_symbol(&self) -> Result<&str, Self::Error> {
+        use gix::remote::Name;
+        self.name()
+            .and_then(Name::as_symbol)
+            .ok_or(Error::NoRemote(Box::new(
+                gix::remote::find::existing::Error::NotFound {
+                    name: Self::ANONYMOUS.into(),
+                },
+            )))
+    }
+}
+
 const V1_ROOT: &str = "refs/tags/ekala/root/v1";
 
 use super::Init;
-impl<'repo> Init<ObjectId> for gix::Remote<'repo> {
+impl<'repo> Init<Root, ObjectId> for gix::Remote<'repo> {
     type Error = Error;
     /// Determines if this remote is a valid Ekala store by pulling HEAD and the root
-    /// tag, ensuring the latter is actually the root of HEAD.
-    fn is_ekala_store(&self) -> bool {
+    /// tag, ensuring the latter is actually the root of HEAD, returning the root.
+    fn ekala_root(&self) -> Result<Root, Self::Error> {
         use crate::id::CalculateRoot;
 
         let repo = self.repo();
-        self.get_refs(["HEAD", V1_ROOT])
-            .map(|i| {
-                let mut i = i.into_iter();
-                let fst = i
-                    .next()
-                    .and_then(|id| repo.find_commit(id).ok())
+        self.get_refs(["HEAD", V1_ROOT]).map(|i| {
+            let mut i = i.into_iter();
+            let root_for = |i: &mut dyn Iterator<Item = ObjectId>| {
+                i.next()
+                    .ok_or(Error::NoRef(V1_ROOT.to_owned(), self.symbol().to_owned()))
+                    .and_then(|id| Ok(repo.find_commit(id).map_err(Box::new)?))
                     .and_then(|c| {
                         (c.parent_ids().count() != 0)
-                            .then(|| c.calculate_root().ok().map(|r| *r))
-                            .unwrap_or(Some(c.id))
-                    });
-                let snd = i
-                    .next()
-                    .and_then(|id| repo.find_commit(id).ok())
-                    .and_then(|c| {
-                        (c.parent_ids().count() != 0)
-                            .then(|| c.calculate_root().ok().map(|r| *r))
-                            .unwrap_or(Some(c.id))
-                    });
-                fst == snd
-            })
-            .unwrap_or(false)
+                            .then(|| c.calculate_root().map(|r| *r))
+                            .unwrap_or(Ok(c.id))
+                    })
+            };
+
+            let fst = root_for(&mut i)?;
+            let snd = root_for(&mut i)?;
+            if fst == snd {
+                Ok(Root(fst))
+            } else {
+                Err(Error::RootInconsistent)
+            }
+        })?
     }
     /// Sync with the given remote and get the most up to date HEAD according to it.
     fn sync(&self) -> Result<ObjectId, Error> {
@@ -266,16 +291,8 @@ impl<'repo> Init<ObjectId> for gix::Remote<'repo> {
 
     /// Initialize the repository by calculating the root, according to the latest HEAD.
     fn ekala_init(&self) -> Result<(), Error> {
-        use gix::remote::Name;
         // fail early if the remote is not persistented to disk
-        let name = self
-            .name()
-            .and_then(Name::as_symbol)
-            .ok_or(Error::NoRemote(Box::new(
-                gix::remote::find::existing::Error::NotFound {
-                    name: "<unamed>".into(),
-                },
-            )))?;
+        let name = self.try_symbol()?;
 
         let head = self.sync()?;
 
@@ -374,16 +391,12 @@ impl<'repo> super::QueryStore<ObjectId> for gix::Remote<'repo> {
             .filter_map(|r| {
                 let (name, target, peeled) = r.unpack();
                 requested.get(name)?;
-                Some(peeled.or(target).map(ToOwned::to_owned).ok_or_else(|| {
-                    Error::NoRef(
-                        name.to_string(),
-                        remote
-                            .name()
-                            .and_then(|n| n.as_symbol())
-                            .unwrap_or("<unamed>")
-                            .into(),
-                    )
-                }))
+                Some(
+                    peeled
+                        .or(target)
+                        .map(ToOwned::to_owned)
+                        .ok_or_else(|| Error::NoRef(name.to_string(), self.symbol().to_owned())),
+                )
             })
             .collect::<Result<HashSet<_>, _>>()
     }
@@ -394,13 +407,9 @@ impl<'repo> super::QueryStore<ObjectId> for gix::Remote<'repo> {
     {
         let name = target.as_ref().to_string();
         self.get_refs(Some(target)).and_then(|r| {
-            r.into_iter().next().ok_or(Error::NoRef(
-                name,
-                self.name()
-                    .and_then(|n| n.as_symbol())
-                    .unwrap_or("<unamed>")
-                    .into(),
-            ))
+            r.into_iter()
+                .next()
+                .ok_or(Error::NoRef(name, self.symbol().to_owned()))
         })
     }
 }

@@ -45,7 +45,7 @@ fn init_repo() -> Result<(), anyhow::Error> {
     let repo = gix::open(dir.as_ref())?;
     let remote = repo.find_remote("origin")?;
     remote.ekala_init()?;
-    assert!(remote.is_ekala_store());
+    assert!(remote.ekala_root().is_ok());
     Ok(())
 }
 
@@ -54,6 +54,6 @@ fn uninitialized_repo() -> Result<(), anyhow::Error> {
     let (dir, _remote) = init_repo_and_remote()?;
     let repo = gix::open(dir.as_ref())?;
     let remote = repo.find_remote("origin")?;
-    assert!(!remote.is_ekala_store());
+    assert!(remote.ekala_root().is_err());
     Ok(())
 }

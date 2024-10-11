@@ -133,7 +133,12 @@ impl<'a> GitPublisher<'a> {
     /// Constructs a new [`GitPublisher`].
     pub fn new(repo: &'a Repository, remote: &'a str, spec: &'a str) -> GitResult<Self> {
         use crate::store::Init;
-        if !repo.find_remote(remote).map_err(Box::new)?.is_ekala_store() {
+        if repo
+            .find_remote(remote)
+            .map_err(Box::new)?
+            .ekala_root()
+            .is_err()
+        {
             return Err(GitError::NotInitialized);
         };
 
