@@ -10,6 +10,9 @@
 //!
 //! A hexadecimal representation of the source commit is also stored in the reproducible
 //! Atom commit header, ensuring it is tied to its source in an unforgable manner.
+#[cfg(test)]
+mod test;
+
 mod inner;
 
 use super::{error::GitError, Content, PublishOutcome, Record};
@@ -44,6 +47,8 @@ pub struct GitContext<'a> {
     remote_str: &'a str,
     /// a JoinSet of push tasks to avoid blocking on them.
     push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
+    /// Path buf for efficient tree searches
+    buf: RefCell<Vec<u8>>,
 }
 
 struct AtomContext<'a> {
@@ -106,9 +111,11 @@ pub(super) struct AtomReferences<'a> {
 
 /// The Git specific content which will be returned for presenting to the user after
 /// an Atom is successfully published.
+#[derive(Debug)]
 pub struct GitContent {
     spec: gix::refs::Reference,
     content: gix::refs::Reference,
+    origin: gix::refs::Reference,
     path: PathBuf,
     ref_prefix: String,
 }
@@ -205,6 +212,10 @@ impl GitContent {
     /// Return a reference to the Atom spec Git ref.
     pub fn spec(&self) -> &gix::refs::Reference {
         &self.spec
+    }
+    /// Return a reference to the Atom src Git ref.
+    pub fn origin(&self) -> &gix::refs::Reference {
+        &self.origin
     }
     /// Return a reference to the Atom content ref.
     pub fn content(&self) -> &gix::refs::Reference {
@@ -332,6 +343,7 @@ impl<'a> GitContext<'a> {
             commit,
             remote_str,
             push_tasks,
+            buf: RefCell::new(Vec::with_capacity(64)),
         })
     }
 

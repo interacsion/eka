@@ -18,6 +18,7 @@ use gix::{
 };
 use std::{
     io::{self, Read},
+    os::unix::ffi::OsStrExt,
     path::Path,
 };
 
@@ -53,7 +54,9 @@ impl<'a> GitContext<'a> {
 
     /// Helper function to return an entry by path from the repo tree
     pub fn tree_search(&self, path: &Path) -> GitResult<Option<Entry<'a>>> {
-        Ok(self.tree.clone().peel_to_entry_by_path(path)?)
+        let mut buf = self.buf.borrow_mut();
+        let search = path.components().map(|c| c.as_os_str().as_bytes());
+        Ok(self.tree.clone().lookup_entry(search, &mut buf)?)
     }
 
     pub(super) fn find_and_verify_atom(&self, path: &Path) -> GitResult<FoundAtom> {
@@ -270,6 +273,7 @@ impl<'a> AtomReferences<'a> {
         GitContent {
             spec: self.spec.detach(),
             content: self.content.detach(),
+            origin: self.origin.detach(),
             path: atom.path.to_path_buf(),
             ref_prefix: atom.ref_prefix.clone(),
         }

@@ -38,7 +38,7 @@ pub trait NormalizeStorePath {
     fn normalize<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, Self::Error>;
 }
 
-trait QueryStore<Id> {
+pub(crate) trait QueryStore<Id> {
     type Error;
     fn get_refs<Spec>(
         &self,

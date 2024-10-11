@@ -6,7 +6,7 @@
 //! is contained here, as well as the type representing the [`Root`] of history used for an
 //! [`crate::AtomId`].
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
 
 use crate::id::CalculateRoot;
 

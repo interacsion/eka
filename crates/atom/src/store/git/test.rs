@@ -1,7 +1,7 @@
 use super::*;
 use tempfile::TempDir;
 
-fn init_repo_and_remote() -> Result<(TempDir, TempDir), anyhow::Error> {
+pub(crate) fn init_repo_and_remote() -> Result<(TempDir, TempDir), anyhow::Error> {
     use gix::config::{File, Source};
     let repo_dir = tempfile::tempdir()?;
     let remote_dir = tempfile::tempdir()?;
