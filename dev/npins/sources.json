@@ -8,9 +8,9 @@
         "repo": "atom"
       },
       "branch": "master",
-      "revision": "9bd62023ed18193e1aab442abffec3490293f246",
-      "url": "https://github.com/ekala-project/atom/archive/9bd62023ed18193e1aab442abffec3490293f246.tar.gz",
-      "hash": "0j1amzb2s44g2rdrb2ra0fx135zqn41hj3h4kz63asfq9jdb71ba"
+      "revision": "f2f7314d0ce19a14ffac3776f9ff870e76981264",
+      "url": "https://github.com/ekala-project/atom/archive/f2f7314d0ce19a14ffac3776f9ff870e76981264.tar.gz",
+      "hash": "1ikzvrmbr10yy11igkac6f7zjn6b91rfgy75na4rf1a5fssjzgv0"
     },
     "fenix": {
       "type": "Git",
@@ -20,9 +20,9 @@
         "repo": "fenix"
       },
       "branch": "main",
-      "revision": "70c22198ab822aa93c92a7ec0933908b17131edd",
-      "url": "https://github.com/nix-community/fenix/archive/70c22198ab822aa93c92a7ec0933908b17131edd.tar.gz",
-      "hash": "0xwkdywy4cffgi9ql0mm5n255wqmhpk1r6k71rmyg19q3yc9gd8j"
+      "revision": "b135535125e24270dddddc8cfab455533492e4ad",
+      "url": "https://github.com/nix-community/fenix/archive/b135535125e24270dddddc8cfab455533492e4ad.tar.gz",
+      "hash": "015v4rd3bdvpn4r8i0dr2anx3zkjaqharxgf3282kamv9rajg06r"
     },
     "nixpkgs": {
       "type": "Git",
@@ -32,9 +32,9 @@
         "repo": "nixpkgs"
       },
       "branch": "nixpkgs-unstable",
-      "revision": "154bcb95ad51bc257c2ce4043a725de6ca700ef6",
-      "url": "https://github.com/nixos/nixpkgs/archive/154bcb95ad51bc257c2ce4043a725de6ca700ef6.tar.gz",
-      "hash": "0gv8wgjqldh9nr3lvpjas7sk0ffyahmvfrz5g4wd8l2r15wyk67f"
+      "revision": "b69de56fac8c2b6f8fd27f2eca01dcda8e0a4221",
+      "url": "https://github.com/nixos/nixpkgs/archive/b69de56fac8c2b6f8fd27f2eca01dcda8e0a4221.tar.gz",
+      "hash": "05ajl4y7a5p50siak7sjflchnx847lhf8ax5p276qrsy7lkq2i3z"
     }
   },
   "version": 3
