@@ -1,9 +1,16 @@
 name: CI
 
 on:
+  push:
+    branches:
+      - master
   pull_request:
     branches:
       - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   test:
@@ -13,11 +20,30 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Nix
         uses: nixbuild/nix-quick-install-action@v28
+        with:
+          github_access_token: ${{ secrets.PAT }}
+          nix_conf: |
+            netrc-file = /home/runner/.netrc
+      - uses: bcomnes/netrc-creds@v3
+        with:
+          creds: |
+            [
+              {
+                "machine": "github.com",
+                "login": "git",
+                "password": "${{ secrets.PAT }}"
+              },
+              {
+                "machine": "api.github.com",
+                "login": "git",
+                "password": "${{ secrets.PAT }}"
+              }
+            ]
       - name: Setup Cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
-      - name: Enter Devshell
-        run: . <(nix print-dev-env "$(nix-instantiate shell.nix)"
+      - name: Eval Devshell
+        run: nix-instantiate shell.nix --add-root shell
       - name: Check Format
-        run: treefmt --ci
+        run: nix-shell shell --command "treefmt --ci"
       - name: Run Tests
-        run: cargo test --all
+        run: nix-shell shell --command "cargo test --all"
