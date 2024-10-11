@@ -41,6 +41,7 @@ jobs:
             ]
       - name: Setup Cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
+      - uses: Swatinem/rust-cache@v2
       - name: Eval Devshell
         run: nix-instantiate shell.nix --add-root shell
       - name: Check Format
