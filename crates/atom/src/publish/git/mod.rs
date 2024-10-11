@@ -124,19 +124,20 @@ use super::{Builder, ValidAtoms};
 
 /// The type representing a Git specific Atom publisher.
 pub struct GitPublisher<'a> {
-    source: &'a Repository,
+    repo: &'a Repository,
     remote: &'a str,
     spec: &'a str,
 }
 
 impl<'a> GitPublisher<'a> {
     /// Constructs a new [`GitPublisher`].
-    pub fn new(source: &'a Repository, remote: &'a str, spec: &'a str) -> Self {
-        GitPublisher {
-            source,
-            remote,
-            spec,
-        }
+    pub fn new(repo: &'a Repository, remote: &'a str, spec: &'a str) -> GitResult<Self> {
+        use crate::store::Init;
+        if !repo.find_remote(remote).map_err(Box::new)?.is_ekala_store() {
+            return Err(GitError::NotInitialized);
+        };
+
+        Ok(GitPublisher { repo, remote, spec })
     }
 }
 
@@ -202,7 +203,7 @@ impl<'a> Builder<'a, Root> for GitPublisher<'a> {
     type Publisher = GitContext<'a>;
 
     fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error> {
-        let publisher = GitContext::set(self.source, self.remote, self.spec)?;
+        let publisher = GitContext::set(self.repo, self.remote, self.spec)?;
         let atoms = GitPublisher::validate(&publisher)?;
         Ok((atoms, publisher))
     }
