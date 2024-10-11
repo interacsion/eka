@@ -41,9 +41,9 @@ jobs:
             ]
       - name: Setup Cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
-      - name: Enter Devshell
-        run: . <(nix print-dev-env "$(nix-instantiate shell.nix)")
+      - name: Eval Devshell
+        run: nix-instantiate shell.nix --add-root shell
       - name: Check Format
-        run: treefmt --ci
+        run: nix-shell shell --command "treefmt --ci"
       - name: Run Tests
-        run: cargo test --all
+        run: nix-shell shell --command "cargo test --all"
