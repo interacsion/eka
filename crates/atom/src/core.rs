@@ -45,14 +45,14 @@ impl AtomPaths<PathBuf> {
         let atom_name: Cow<str>;
         let content_name: Cow<str>;
 
-        if !name.ends_with("@") {
-            atom_name = format!("{}@", name).into();
-            content_name = name;
-        } else {
+        if name.ends_with('@') {
             atom_name = name;
             let mut name = atom_name.to_string();
             name.pop();
             content_name = name.into();
+        } else {
+            atom_name = format!("{name}@").into();
+            content_name = name;
         };
 
         let content = path.as_ref().with_file_name(content_name.as_ref());
@@ -61,7 +61,7 @@ impl AtomPaths<PathBuf> {
                 .as_ref()
                 .with_file_name(atom_name.as_ref())
                 .with_extension(crate::TOML),
-            content: content.to_owned(),
+            content: content.clone(),
             lock: content.with_extension(LOCK),
         }
     }

@@ -32,11 +32,17 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    /// Build an Atom struct from the \[atom] key of a TOML manifest, ignoring other fields or keys].
+    /// Build an Atom struct from the \[atom] key of a TOML manifest,
+    /// ignoring other fields or keys].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the content is invalid
+    /// TOML, or if the \[atom] key is missing.
     pub fn get_atom(content: &str) -> AtomResult<Atom> {
         let doc = content.parse::<DocumentMut>()?;
 
-        if let Some(v) = doc.get("atom").map(|v| v.to_string()) {
+        if let Some(v) = doc.get("atom").map(ToString::to_string) {
             let atom = de::from_str::<Atom>(&v)?;
             Ok(atom)
         } else {

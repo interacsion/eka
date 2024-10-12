@@ -300,16 +300,14 @@ impl<'repo> Init<Root, ObjectId> for gix::Remote<'repo> {
 
     /// Initialize the repository by calculating the root, according to the latest HEAD.
     fn ekala_init(&self) -> Result<(), Error> {
-        // fail early if the remote is not persistented to disk
-        let name = self.try_symbol()?;
-
-        let head = self.sync()?;
-
         use crate::CalculateRoot;
+        use gix::refs::transaction::PreviousValue;
+
+        let name = self.try_symbol()?;
+        let head = self.sync()?;
         let repo = self.repo();
         let root = *repo.find_commit(head).map_err(Box::new)?.calculate_root()?;
 
-        use gix::refs::transaction::PreviousValue;
         let root_ref = repo
             .reference(V1_ROOT, root, PreviousValue::MustNotExist, "init: root")
             .map_err(Box::new)?
@@ -323,7 +321,7 @@ impl<'repo> Init<Root, ObjectId> for gix::Remote<'repo> {
             repo.git_dir().to_string_lossy().as_ref(),
             "push",
             name,
-            format!("{}:{}", root_ref, root_ref).as_str(),
+            format!("{root_ref}:{root_ref}").as_str(),
         ])?;
         tracing::info!(remote = name, message = "Successfully initialized");
         Ok(())
@@ -359,10 +357,11 @@ impl<'repo> super::QueryStore<ObjectId> for gix::Remote<'repo> {
     where
         Spec: AsRef<BStr>,
     {
+        use gix::progress::tree::Root;
+        use gix::remote::ref_map::Options;
         use gix::remote::{fetch::Tags, Direction};
         use std::collections::HashSet;
-
-        use gix::progress::tree::Root;
+        use std::sync::atomic::AtomicBool;
 
         let tree = Root::new();
         let sync_progress = tree.add_child("sync");
@@ -381,13 +380,11 @@ impl<'repo> super::QueryStore<ObjectId> for gix::Remote<'repo> {
             .filter_map(|r| r.to_ref().source().map(ToOwned::to_owned))
             .collect();
 
-        use gix::remote::ref_map::Options;
         let client = remote.connect(Direction::Fetch).map_err(Box::new)?;
         let sync = client
             .prepare_fetch(sync_progress, Options::default())
             .map_err(Box::new)?;
 
-        use std::sync::atomic::AtomicBool;
         let outcome = sync
             .receive(init_progress, &AtomicBool::new(false))
             .map_err(Box::new)?;

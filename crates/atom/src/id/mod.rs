@@ -22,7 +22,7 @@ const ID_MAX: usize = 128;
 pub struct Id(String);
 
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum IdError {
+pub enum Error {
     #[error("An Atom id cannot be more than {} bytes", ID_MAX)]
     TooLong,
     #[error("An Atom id cannot be empty")]
@@ -44,6 +44,10 @@ pub trait CalculateRoot<R> {
     /// The error type returned by the [`CalculateRoot::calculate_root`] method.
     type Error;
     /// The method used the calculate the root field for the [`AtomId`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the calculation fails or is impossible.
     fn calculate_root(&self) -> Result<R, Self::Error>;
 }
 
@@ -106,8 +110,13 @@ impl<R> AtomId<R>
 where
     for<'id> AtomId<R>: ComputeHash<'id, R>,
 {
-    /// Compute and construct an Atom's ID. This method takes a `src` type
-    /// which must implement a the [`CalculateRoot`] struct.
+    /// Compute and construct an Atom's ID. This method takes a `src`
+    /// type which must implement a the [`CalculateRoot`] struct.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the call to
+    /// [`CalculateRoot::calculate_root`] fails.
     pub fn compute<T>(src: &T, id: Id) -> Result<Self, T::Error>
     where
         T: CalculateRoot<R>,
@@ -123,28 +132,28 @@ where
 }
 
 impl Id {
-    fn validate_start(c: char) -> Result<(), IdError> {
+    fn validate_start(c: char) -> Result<(), Error> {
         if Id::is_invalid_start(c) {
-            return Err(IdError::InvalidStart(c));
+            return Err(Error::InvalidStart(c));
         }
         Ok(())
     }
 
-    pub(super) fn validate(s: &str) -> Result<(), IdError> {
+    pub(super) fn validate(s: &str) -> Result<(), Error> {
         if s.len() > ID_MAX {
-            return Err(IdError::TooLong);
+            return Err(Error::TooLong);
         }
 
         match s.chars().next().map(Id::validate_start) {
-            Some(Ok(_)) => (),
+            Some(Ok(())) => (),
             Some(Err(e)) => return Err(e),
-            None => return Err(IdError::Empty),
+            None => return Err(Error::Empty),
         }
 
         let invalid_chars: String = s.chars().filter(|&c| !Id::is_valid_char(c)).collect();
 
         if !invalid_chars.is_empty() {
-            return Err(IdError::InvalidCharacters(invalid_chars));
+            return Err(Error::InvalidCharacters(invalid_chars));
         }
 
         Ok(())
@@ -185,7 +194,7 @@ impl fmt::Display for Id {
     }
 }
 impl FromStr for Id {
-    type Err = IdError;
+    type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Id::validate(s)?;
@@ -194,7 +203,7 @@ impl FromStr for Id {
 }
 
 impl TryFrom<String> for Id {
-    type Error = IdError;
+    type Error = Error;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
         Id::validate(&s)?;
@@ -203,7 +212,7 @@ impl TryFrom<String> for Id {
 }
 
 impl TryFrom<&str> for Id {
-    type Error = IdError;
+    type Error = Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         Id::from_str(s)
@@ -226,9 +235,9 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = self.compute_hash();
         if let Some(max_width) = f.precision() {
-            write!(f, "{:.width$}", s, width = max_width)
+            write!(f, "{s:.max_width$}")
         } else {
-            write!(f, "{}", s)
+            write!(f, "{s}")
         }
     }
 }
@@ -237,7 +246,7 @@ impl<'a, R> Display for AtomHash<'a, R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = base32::encode(crate::BASE32, &self.hash);
         if let Some(max_width) = f.precision() {
-            write!(f, "{:.width$}", s, width = max_width)
+            write!(f, "{s:.max_width$}")
         } else {
             f.write_str(&s)
         }

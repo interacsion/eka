@@ -97,13 +97,13 @@ impl GitError {
                     atom_root = %**atom,
                     remote_root = %**remote,
                     suggest = GitError::INCONSISTENT_ROOT_SUGGESTION
-                )
+                );
             }
             GitError::Invalid(e, path) => {
-                tracing::warn!(message = %self, path = %path.display(), message = format!("\n{}", e))
+                tracing::warn!(message = %self, path = %path.display(), message = format!("\n{}", e));
             }
             GitError::NotAnAtom(path) => {
-                tracing::warn!(message = %self, path = %path.display())
+                tracing::warn!(message = %self, path = %path.display());
             }
             GitError::Failed => (),
             _ => tracing::warn!(message = %self),

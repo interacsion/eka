@@ -36,7 +36,7 @@ type MaybeSkipped<T> = Result<T, Id>;
 /// A Record that signifies whether an Atom was published or safetly skipped.
 type PublishOutcome<R> = MaybeSkipped<Record<R>>;
 
-/// A HashMap containing all valid Atoms in the current store.
+/// A [`HashMap`] containing all valid Atoms in the current store.
 type ValidAtoms = HashMap<Id, PathBuf>;
 
 /// Contains the content pertinent to a specific implementation for reporting results

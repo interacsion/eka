@@ -48,7 +48,7 @@ pub struct GitContext<'a> {
     remote_str: &'a str,
     /// The reported root commit according to the remote.
     root: Root,
-    /// a JoinSet of push tasks to avoid blocking on them.
+    /// A [`JoinSet`] of push tasks to avoid blocking on them.
     push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
     /// Path buf for efficient tree searches
     buf: RefCell<Vec<u8>>,
@@ -182,7 +182,7 @@ impl<'a> StateValidator<Root> for GitPublisher<'a> {
         let cap = calculate_capacity(record.records.len());
         let mut atoms: HashMap<Id, PathBuf> = HashMap::with_capacity(cap);
 
-        for entry in record.records.into_iter() {
+        for entry in record.records {
             if entry.mode.is_blob() && entry.filepath.ends_with(crate::ATOM_EXT.as_ref()) {
                 if let Ok(obj) = publisher.repo.find_object(entry.oid) {
                     let path = PathBuf::from(entry.filepath.to_string());
@@ -224,22 +224,27 @@ impl<'a> Builder<'a, Root> for GitPublisher<'a> {
 
 impl GitContent {
     /// Return a reference to the Atom spec Git ref.
+    #[must_use]
     pub fn spec(&self) -> &gix::refs::Reference {
         &self.spec
     }
     /// Return a reference to the Atom src Git ref.
+    #[must_use]
     pub fn origin(&self) -> &gix::refs::Reference {
         &self.origin
     }
     /// Return a reference to the Atom content ref.
+    #[must_use]
     pub fn content(&self) -> &gix::refs::Reference {
         &self.content
     }
     /// Return a reference to the path to the Atom.
+    #[must_use]
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
     /// Return a reference to the atom ref prefix.
+    #[must_use]
     pub fn ref_prefix(&self) -> &String {
         &self.ref_prefix
     }
@@ -306,7 +311,7 @@ impl<'a> Publish<Root> for GitContext<'a> {
 
         let atom = AtomContext::set(path.as_ref(), self)?;
 
-        let tree_id = match atom.write_atom_tree(atom.atom.entries.clone())? {
+        let tree_id = match atom.write_atom_tree(&atom.atom.entries)? {
             Ok(t) => t,
             Skipped(id) => return Ok(Skipped(id)),
         };
@@ -328,8 +333,8 @@ impl<'a> AtomContext<'a> {
         let (atom, paths) = git.find_and_verify_atom(path)?;
         let ref_prefix = format!("{}/{}", super::ATOM_REF_TOP_LEVEL, atom.id.id());
         Ok(Self {
-            atom,
             paths,
+            atom,
             ref_prefix,
             git,
         })
