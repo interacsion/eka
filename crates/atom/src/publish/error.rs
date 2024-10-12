@@ -66,7 +66,7 @@ pub enum GitError {
     Invalid(#[source] crate::manifest::AtomError, Box<PathBuf>),
     /// The path given does not point to an Atom.
     #[error("The given path does not point to an Atom")]
-    NotAFile(PathBuf),
+    NotAnAtom(PathBuf),
     /// Failed to sync a least one Atom to the remote.
     #[error("Failed to sync some Atoms to the remote")]
     SomePushFailed,
@@ -102,7 +102,7 @@ impl GitError {
             GitError::Invalid(e, path) => {
                 tracing::warn!(message = %self, path = %path.display(), message = format!("\n{}", e))
             }
-            GitError::NotAFile(path) => {
+            GitError::NotAnAtom(path) => {
                 tracing::warn!(message = %self, path = %path.display())
             }
             GitError::Failed => (),

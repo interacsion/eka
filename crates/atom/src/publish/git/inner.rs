@@ -3,7 +3,8 @@ use super::{
     AtomContext, AtomRef, GitContext, GitResult, RefKind,
 };
 use crate::{
-    publish::{error::GitError, ATOM_LOCK, ATOM_ORIGIN},
+    core::AtomPaths,
+    publish::{error::GitError, ATOM_ORIGIN},
     store::git,
     Atom, AtomId, Manifest,
 };
@@ -22,6 +23,7 @@ use std::{
     path::Path,
 };
 
+use std::path::PathBuf;
 impl<'a> GitContext<'a> {
     /// Method to verify the manifest of an entry
     pub(super) fn verify_manifest(&self, obj: &Object, path: &Path) -> GitResult<Atom> {
@@ -59,27 +61,29 @@ impl<'a> GitContext<'a> {
         Ok(self.tree.clone().lookup_entry(search, &mut buf)?)
     }
 
-    pub(super) fn find_and_verify_atom(&self, path: &Path) -> GitResult<FoundAtom> {
+    pub(super) fn find_and_verify_atom(
+        &self,
+        path: &Path,
+    ) -> GitResult<(FoundAtom, AtomPaths<PathBuf>)> {
         use smallvec::smallvec;
-        let lock = path.with_extension(ATOM_LOCK);
-        let dir = path.with_extension("");
+        let paths = AtomPaths::new(path);
         let entry = self
-            .tree_search(path)?
-            .ok_or(GitError::NotAFile(path.into()))?;
+            .tree_search(paths.spec())?
+            .ok_or(GitError::NotAnAtom(path.into()))?;
 
         if !entry.mode().is_blob() {
-            return Err(GitError::NotAFile(path.into()));
+            return Err(GitError::NotAnAtom(path.into()));
         }
 
         let lock = self
-            .tree_search(&lock)?
+            .tree_search(paths.lock())?
             .and_then(|e| e.mode().is_blob().then_some(e));
 
-        let dir = self
-            .tree_search(&dir)?
+        let content = self
+            .tree_search(paths.content())?
             .and_then(|e| e.mode().is_tree().then_some(e));
 
-        self.verify_manifest(&entry.object()?, path)
+        self.verify_manifest(&entry.object()?, paths.spec())
             .and_then(|spec| {
                 let id = AtomId::compute(&self.commit, spec.id.clone())?;
                 if self.root != *id.root() {
@@ -88,13 +92,13 @@ impl<'a> GitContext<'a> {
                         atom: *id.root(),
                     });
                 };
-                let entries = match (lock, dir) {
+                let entries = match (lock, content) {
                     (None, None) => smallvec![entry],
-                    (None, Some(dir)) => smallvec![entry, dir],
+                    (None, Some(content)) => smallvec![entry, content],
                     (Some(lock), None) => smallvec![entry, lock],
-                    (Some(lock), Some(dir)) => smallvec![entry, dir, lock],
+                    (Some(lock), Some(content)) => smallvec![entry, content, lock],
                 };
-                Ok(FoundAtom { spec, id, entries })
+                Ok((FoundAtom { spec, id, entries }, paths))
             })
     }
 }
@@ -186,7 +190,8 @@ impl<'a> AtomContext<'a> {
                 (ATOM_ORIGIN.into(), self.git.commit.id.to_string().into()),
                 (
                     "path".into(),
-                    self.path
+                    self.paths
+                        .content()
                         .parent()
                         .unwrap_or(Path::new("/"))
                         .to_string_lossy()
@@ -280,7 +285,7 @@ impl<'a> AtomReferences<'a> {
             spec: self.spec.detach(),
             content: self.content.detach(),
             origin: self.origin.detach(),
-            path: atom.path.to_path_buf(),
+            path: atom.paths.spec().to_path_buf(),
             ref_prefix: atom.ref_prefix.clone(),
         }
     }

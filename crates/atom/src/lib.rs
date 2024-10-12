@@ -39,4 +39,7 @@ pub use id::AtomId;
 pub use id::CalculateRoot;
 pub use manifest::Manifest;
 
+use std::sync::LazyLock;
+const TOML: &str = "toml";
 const BASE32: base32::Alphabet = base32::Alphabet::Rfc4648HexLower { padding: false };
+static ATOM_EXT: LazyLock<String> = LazyLock::new(|| format!("@.{}", crate::TOML));

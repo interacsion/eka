@@ -17,6 +17,7 @@ mod inner;
 
 use super::{error::GitError, Content, PublishOutcome, Record};
 use crate::{
+    core::AtomPaths,
     store::{git::Root, NormalizeStorePath},
     Atom, AtomId,
 };
@@ -54,8 +55,8 @@ pub struct GitContext<'a> {
 }
 
 struct AtomContext<'a> {
+    paths: AtomPaths<PathBuf>,
     atom: FoundAtom<'a>,
-    path: &'a Path,
     ref_prefix: String,
     git: &'a GitContext<'a>,
 }
@@ -169,7 +170,6 @@ impl<'a> StateValidator<Root> for GitPublisher<'a> {
     type Publisher = GitContext<'a>;
 
     fn validate(publisher: &Self::Publisher) -> Result<ValidAtoms, Self::Error> {
-        use crate::publish::ATOM_EXT;
         use gix::traverse::tree::Recorder;
         let mut record = Recorder::default();
 
@@ -183,7 +183,7 @@ impl<'a> StateValidator<Root> for GitPublisher<'a> {
         let mut atoms: HashMap<Id, PathBuf> = HashMap::with_capacity(cap);
 
         for entry in record.records.into_iter() {
-            if entry.mode.is_blob() && entry.filepath.ends_with(format!(".{}", ATOM_EXT).as_ref()) {
+            if entry.mode.is_blob() && entry.filepath.ends_with(crate::ATOM_EXT.as_ref()) {
                 if let Ok(obj) = publisher.repo.find_object(entry.oid) {
                     let path = PathBuf::from(entry.filepath.to_string());
                     match publisher.verify_manifest(&obj, &path) {
@@ -290,7 +290,7 @@ impl<'a> Publish<Root> for GitContext<'a> {
         paths
             .into_iter()
             .map(|path| {
-                let path = match self.repo.normalize(path.with_extension(super::ATOM_EXT)) {
+                let path = match self.repo.normalize(&path) {
                     Ok(path) => path,
                     Err(git::Error::NoWorkDir) => path,
                     Err(e) => return Err(e.into()),
@@ -304,37 +304,35 @@ impl<'a> Publish<Root> for GitContext<'a> {
         use Err as Skipped;
         use Ok as Published;
 
-        let spec = path.as_ref();
-        let dir = spec.with_extension("");
-        let atom = self.find_and_verify_atom(spec)?;
-        let this = AtomContext::set(atom, &dir, self);
+        let atom = AtomContext::set(path.as_ref(), self)?;
 
-        let tree_id = match this.write_atom_tree(this.atom.entries.clone())? {
+        let tree_id = match atom.write_atom_tree(atom.atom.entries.clone())? {
             Ok(t) => t,
             Skipped(id) => return Ok(Skipped(id)),
         };
 
-        let refs = this
+        let refs = atom
             .write_atom_commit(tree_id)?
-            .write_refs(&this)?
-            .push(&this);
+            .write_refs(&atom)?
+            .push(&atom);
 
         Ok(Published(GitRecord {
-            id: this.atom.id.clone(),
+            id: atom.atom.id.clone(),
             content: Content::Git(refs),
         }))
     }
 }
 
 impl<'a> AtomContext<'a> {
-    fn set(atom: FoundAtom<'a>, path: &'a Path, git: &'a GitContext) -> Self {
+    fn set(path: &'a Path, git: &'a GitContext) -> GitResult<Self> {
+        let (atom, paths) = git.find_and_verify_atom(path)?;
         let ref_prefix = format!("{}/{}", super::ATOM_REF_TOP_LEVEL, atom.id.id());
-        Self {
+        Ok(Self {
             atom,
-            path,
+            paths,
             ref_prefix,
             git,
-        }
+        })
     }
 }
 
