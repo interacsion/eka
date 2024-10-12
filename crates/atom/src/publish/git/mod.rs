@@ -45,6 +45,8 @@ pub struct GitContext<'a> {
     commit: Commit<'a>,
     /// Store the given remote name as a &str for convenient use.
     remote_str: &'a str,
+    /// The reported root commit according to the remote.
+    root: Root,
     /// a JoinSet of push tasks to avoid blocking on them.
     push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
     /// Path buf for efficient tree searches
@@ -124,19 +126,31 @@ use super::{Builder, ValidAtoms};
 
 /// The type representing a Git specific Atom publisher.
 pub struct GitPublisher<'a> {
-    source: &'a Repository,
+    repo: &'a Repository,
     remote: &'a str,
     spec: &'a str,
+    root: Root,
 }
 
 impl<'a> GitPublisher<'a> {
     /// Constructs a new [`GitPublisher`].
-    pub fn new(source: &'a Repository, remote: &'a str, spec: &'a str) -> Self {
-        GitPublisher {
-            source,
+    pub fn new(repo: &'a Repository, remote: &'a str, spec: &'a str) -> GitResult<Self> {
+        use crate::store::Init;
+        let root = repo
+            .find_remote(remote)
+            .map_err(Box::new)?
+            .ekala_root()
+            .map_err(|e| {
+                e.warn();
+                GitError::NotInitialized
+            })?;
+
+        Ok(GitPublisher {
+            repo,
             remote,
             spec,
-        }
+            root,
+        })
     }
 }
 
@@ -202,7 +216,7 @@ impl<'a> Builder<'a, Root> for GitPublisher<'a> {
     type Publisher = GitContext<'a>;
 
     fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error> {
-        let publisher = GitContext::set(self.source, self.remote, self.spec)?;
+        let publisher = GitContext::set(self.repo, self.remote, self.spec, self.root)?;
         let atoms = GitPublisher::validate(&publisher)?;
         Ok((atoms, publisher))
     }
@@ -325,7 +339,12 @@ impl<'a> AtomContext<'a> {
 }
 
 impl<'a> GitContext<'a> {
-    fn set(repo: &'a Repository, remote_str: &'a str, refspec: &str) -> GitResult<Self> {
+    fn set(
+        repo: &'a Repository,
+        remote_str: &'a str,
+        refspec: &str,
+        root: Root,
+    ) -> GitResult<Self> {
         // short-circuit publishing if the passed remote doesn't exist
         let _remote = repo.find_remote(remote_str).map_err(Box::new)?;
         let commit = repo
@@ -339,6 +358,7 @@ impl<'a> GitContext<'a> {
 
         Ok(Self {
             repo,
+            root,
             tree,
             commit,
             remote_str,

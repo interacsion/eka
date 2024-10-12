@@ -90,7 +90,7 @@ async fn publish_atom() -> Result<(), anyhow::Error> {
     let id = "foo";
     let (file_path, src) = repo.mock(id, "0.1.0", "some atom")?;
 
-    let (paths, publisher) = GitPublisher::new(&repo, "origin", "HEAD").build()?;
+    let (paths, publisher) = GitPublisher::new(&repo, "origin", "HEAD")?.build()?;
 
     let path = paths.get(&Id::try_from(id)?).context("path is messed up")?;
     let result = publisher.publish_atom(path)?;

@@ -38,7 +38,6 @@ pub(super) async fn run(
     repo: &ThreadSafeRepository,
     args: PublishArgs,
 ) -> GitResult<(Vec<GitResult<GitOutcome>>, Vec<GitError>)> {
-    use atom::store::Init;
     use atom::{
         publish::{git::GitPublisher, Builder, Publish},
         store::NormalizeStorePath,
@@ -48,15 +47,7 @@ pub(super) async fn run(
 
     let GitArgs { remote, spec } = args.store.git;
 
-    if !repo
-        .find_remote(remote.as_str())
-        .map_err(Box::new)?
-        .is_ekala_store()
-    {
-        return Err(GitError::NotInitialized);
-    };
-
-    let (atoms, publisher) = GitPublisher::new(&repo, &remote, &spec).build()?;
+    let (atoms, publisher) = GitPublisher::new(&repo, &remote, &spec)?.build()?;
 
     let mut errors = Vec::with_capacity(args.path.len());
     let results = if args.recursive {

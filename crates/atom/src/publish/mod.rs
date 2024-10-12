@@ -65,7 +65,7 @@ pub trait Builder<'a, R> {
 trait StateValidator<R> {
     type Error;
     type Publisher: Publish<R>;
-    /// Validate the state of the Atom source before.
+    /// Validate the state of the Atom source.
     ///
     /// This function is called during construction to ensure that we
     /// never allow for an inconsistent state in the final Ekala store.

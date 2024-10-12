@@ -82,6 +82,12 @@ impl<'a> GitContext<'a> {
         self.verify_manifest(&entry.object()?, path)
             .and_then(|spec| {
                 let id = AtomId::compute(&self.commit, spec.id.clone())?;
+                if self.root != *id.root() {
+                    return Err(GitError::InconsistentRoot {
+                        remote: self.root,
+                        atom: *id.root(),
+                    });
+                };
                 let entries = match (lock, dir) {
                     (None, None) => smallvec![entry],
                     (None, Some(dir)) => smallvec![entry, dir],
