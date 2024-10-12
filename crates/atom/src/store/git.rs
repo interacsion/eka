@@ -66,16 +66,25 @@ pub enum Error {
     WriteRef(#[from] Box<gix::reference::edit::Error>),
 }
 
+impl Error {
+    pub(crate) fn warn(self) -> Self {
+        tracing::warn!(message = %self);
+        self
+    }
+}
+
 /// Provide a lazyily instantiated static reference to the git repository.
 static REPO: OnceLock<Option<ThreadSafeRepository>> = OnceLock::new();
 
 use std::borrow::Cow;
 static DEFAULT_REMOTE: OnceLock<Cow<str>> = OnceLock::new();
 
-/// The wrapper type unambiguously identifying the underlying type which will be used to represent
-/// the "root" identifier for an [`crate::AtomId`]. In the case of the git implementation, this is an object
-/// id representing the original commit made in the repositories history.
-#[derive(Clone)]
+/// The wrapper type for the underlying type which will be used to represent
+/// the "root" identifier for an [`crate::AtomId`]. For git, this is a [`gix::ObjectId`]
+/// representing the original commit made in the repositories history.
+///
+/// The wrapper helps disambiguate at the type level between object ids and the root id.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Root(ObjectId);
 
 /// Return a static reference the the local Git repository.

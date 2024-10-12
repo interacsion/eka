@@ -1,6 +1,7 @@
 //! # Publishing Errors
 //!
 //! This module contains the error types for errors that might occur during publishing.
+use crate::store::git::Root;
 use gix::object;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -49,6 +50,14 @@ pub enum GitError {
     /// A transparent wrapper for a [`tokio::task::JoinError`]
     #[error(transparent)]
     JoinFailed(#[from] tokio::task::JoinError),
+    /// The reported root & the atom root are inconsistent.
+    #[error("Atom does not derive from the initialized history")]
+    InconsistentRoot {
+        /// The root according to the remote we are publishing to.
+        remote: Root,
+        /// The root of history for the source from which the atom is derived.
+        atom: Root,
+    },
     /// The remote is not initialized as an Ekala store.
     #[error("Remote is not initialized")]
     NotInitialized,
@@ -76,9 +85,20 @@ pub enum GitError {
 }
 
 impl GitError {
+    const INCONSISTENT_ROOT_SUGGESTION: &str =
+        "You may need to reinitalize the remote if the issue persists";
+
     /// Warn the user about specific error conditions encountered during publishing.
     pub fn warn(&self) {
         match self {
+            GitError::InconsistentRoot { remote, atom } => {
+                tracing::warn!(
+                    message = %self,
+                    atom_root = %**atom,
+                    remote_root = %**remote,
+                    suggest = GitError::INCONSISTENT_ROOT_SUGGESTION
+                )
+            }
             GitError::Invalid(e, path) => {
                 tracing::warn!(message = %self, path = %path.display(), message = format!("\n{}", e))
             }
