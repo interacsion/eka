@@ -150,7 +150,6 @@ dependencies = [
  "gix",
  "gix-url",
  "insta",
- "lazy_static",
  "nom",
  "path-clean",
  "prodash",
@@ -359,7 +358,6 @@ dependencies = [
  "etcetera",
  "figment",
  "gix",
- "lazy_static",
  "serde",
 ]
 

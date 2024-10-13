@@ -315,9 +315,8 @@ impl<'a> From<&'a str> for AtomRef<'a> {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref ALIASES: Aliases = Aliases(config::CONFIG.aliases());
-}
+use std::sync::LazyLock;
+static ALIASES: LazyLock<Aliases> = LazyLock::new(|| Aliases(config::CONFIG.aliases()));
 
 impl<'a> UrlRef<'a> {
     fn render_alias(&self) -> Option<(&str, Option<Cow<'static, str>>)> {

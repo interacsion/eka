@@ -28,7 +28,6 @@ gix  = { workspace = true, optional = true }
 
 [workspace.dependencies]
 anyhow           = "^1"
-lazy_static      = "^1"
 serde_json       = "^1"
 tempfile         = "^3.13"
 thiserror        = "^1"
