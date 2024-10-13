@@ -21,9 +21,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::id::IdError;
-
 use super::id::Id;
+use crate::id::Error;
 
 use gix::Url;
 use semver::VersionReq;
@@ -240,7 +239,7 @@ impl<'a> From<&'a str> for Ref<'a> {
 pub enum UriError {
     /// An alias uses the same validation logic as the Unicode Atom identifier.
     #[error(transparent)]
-    AliasValidation(#[from] IdError),
+    AliasValidation(#[from] Error),
     /// The version requested is not valid.
     #[error(transparent)]
     InvalidVersionReq(#[from] semver::Error),
@@ -272,7 +271,7 @@ impl Aliases {
         let res = match res.split_once(':') {
             Some((s, rest)) => {
                 let res = self.get_alias(s)?;
-                Cow::Owned(format!("{}/{}", res, rest))
+                Cow::Owned(format!("{res}/{rest}"))
             }
             None => Cow::Borrowed(res),
         };
@@ -328,6 +327,8 @@ impl<'a> UrlRef<'a> {
     }
 
     fn to_url(&self) -> Option<Url> {
+        use gix::url::Scheme;
+
         let (frag, resolved) = self.render_alias().unwrap_or((self.frag?, None));
 
         #[allow(clippy::unnecessary_unwrap)]
@@ -355,7 +356,6 @@ impl<'a> UrlRef<'a> {
                 None
             }
         });
-        use gix::url::Scheme;
 
         let scheme: Scheme = self
             .scheme
@@ -374,9 +374,9 @@ impl<'a> UrlRef<'a> {
         let rest = if rest.is_empty() { frag } else { rest };
 
         let path = if host.is_none() {
-            format!("{}{}{}", maybe_host, delim, rest)
+            format!("{maybe_host}{delim}{rest}")
         } else if !rest.starts_with('/') {
-            format!("/{}", rest)
+            format!("/{rest}")
         } else {
             rest.into()
         };
@@ -475,25 +475,32 @@ impl<'a> TryFrom<&'a str> for Uri {
 
 impl std::fmt::Display for Uri {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let url = self.url.as_ref().map(|u| u.to_string()).unwrap_or_default();
+        let url = self
+            .url
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_default();
         let version = self
             .version
             .as_ref()
-            .map(|v| format!("@{}", v))
+            .map(|v| format!("@{v}"))
             .unwrap_or_default();
         write!(f, "{}::{}{}", &url.trim_end_matches('/'), self.id, &version)
     }
 }
 
 impl Uri {
+    #[must_use]
     /// Returns a reference to the Url parsed out of the Atom URI.
     pub fn url(&self) -> Option<&Url> {
         self.url.as_ref()
     }
+    #[must_use]
     /// Returns the Atom identifier parsed from the URI.
     pub fn id(&self) -> &Id {
         &self.id
     }
+    #[must_use]
     /// Returns the Atom version parsed from the URI.
     pub fn version(&self) -> Option<&VersionReq> {
         self.version.as_ref()

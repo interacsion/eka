@@ -36,7 +36,7 @@ type MaybeSkipped<T> = Result<T, Id>;
 /// A Record that signifies whether an Atom was published or safetly skipped.
 type PublishOutcome<R> = MaybeSkipped<Record<R>>;
 
-/// A HashMap containing all valid Atoms in the current store.
+/// A [`HashMap`] containing all valid Atoms in the current store.
 type ValidAtoms = HashMap<Id, PathBuf>;
 
 /// Contains the content pertinent to a specific implementation for reporting results
@@ -128,11 +128,8 @@ impl<R> Record<R> {
     }
 }
 
-/// The file extension on an Atom manifest.
-pub const ATOM_EXT: &str = "atom";
 const EMPTY_SIG: &str = "";
 const ATOM_FORMAT_VERSION: &str = "1";
 const ATOM_REF_TOP_LEVEL: &str = "atoms";
 const ATOM_MANIFEST: &str = "spec";
 const ATOM_ORIGIN: &str = "src";
-const ATOM_LOCK: &str = "lock";

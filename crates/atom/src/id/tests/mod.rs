@@ -3,14 +3,14 @@ use super::*;
 #[test]
 fn empty() {
     let res = Id::try_from("");
-    assert!(res == Err(IdError::Empty));
+    assert!(res == Err(Error::Empty));
 }
 
 #[test]
 fn invalid_start() {
     let assert = |s: &str| {
         let res = Id::try_from(s);
-        assert!(res == Err(IdError::InvalidStart(s.chars().next().unwrap())));
+        assert!(res == Err(Error::InvalidStart(s.chars().next().unwrap())));
     };
     for a in ["9atom", "'atom", "_atom", "-atom", "%atom"] {
         assert(a)
@@ -20,7 +20,7 @@ fn invalid_start() {
 #[test]
 fn invalid_chars() {
     let res = Id::try_from("a-!@#$%^&*()_-asdf");
-    assert!(res == Err(IdError::InvalidCharacters("!@#$%^&*()".into())));
+    assert!(res == Err(Error::InvalidCharacters("!@#$%^&*()".into())));
 }
 
 #[test]
@@ -84,25 +84,25 @@ fn invalid_unicode_ids() {
 fn specific_unicode_errors() {
     assert_eq!(
         Id::try_from("123αβγ"),
-        Err(IdError::InvalidStart('1')),
+        Err(Error::InvalidStart('1')),
         "Should fail for starting with a number"
     );
 
     assert_eq!(
         Id::try_from("αβγ!@#"),
-        Err(IdError::InvalidCharacters("!@#".into())),
+        Err(Error::InvalidCharacters("!@#".into())),
         "Should fail for invalid characters"
     );
 
     assert_eq!(
         Id::try_from("한글 漢字"),
-        Err(IdError::InvalidCharacters(" ".into())),
+        Err(Error::InvalidCharacters(" ".into())),
         "Should fail for space between valid characters"
     );
 
     assert_eq!(
         Id::try_from("Café♥"),
-        Err(IdError::InvalidCharacters("♥".into())),
+        Err(Error::InvalidCharacters("♥".into())),
         "Should fail for heart symbol"
     );
 }
@@ -123,13 +123,13 @@ fn edge_cases() {
 
     assert_eq!(
         Id::try_from("\u{200B}"),
-        Err(IdError::InvalidStart('\u{200B}')),
+        Err(Error::InvalidStart('\u{200B}')),
         "Zero-width space should be invalid start"
     );
 
     assert_eq!(
         Id::try_from("α\u{200B}"),
-        Err(IdError::InvalidCharacters("\u{200B}".into())),
+        Err(Error::InvalidCharacters("\u{200B}".into())),
         "Zero-width space should be invalid in the middle"
     );
 }

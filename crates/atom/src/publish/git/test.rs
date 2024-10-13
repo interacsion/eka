@@ -31,7 +31,9 @@ impl MockAtom for gix::Repository {
         use toml_edit::ser;
 
         let work_dir = self.work_dir().context("No workdir")?;
-        let mut atom_file = Builder::new().suffix(".atom").tempfile_in(work_dir)?;
+        let mut atom_file = Builder::new()
+            .suffix(crate::ATOM_EXT.as_str())
+            .tempfile_in(work_dir)?;
         let manifest = Manifest {
             atom: Atom {
                 id: id.try_into()?,
@@ -121,7 +123,7 @@ async fn publish_atom() -> Result<(), anyhow::Error> {
         .strip_prefix(repo.work_dir().context("")?)?;
 
     assert_eq!(origin_id, src);
-    assert_eq!(path.with_extension(""), content.path);
+    assert_eq!(path, content.path);
     assert_eq!(content.ref_prefix, prefix);
 
     // our repo has no other contents but the atom so all 3 trees should be equal
