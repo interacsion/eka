@@ -45,6 +45,8 @@ jobs:
       - name: Eval Devshell
         run: nix-instantiate shell.nix --add-root shell
       - name: Check Format
-        run: nix-shell shell --command "treefmt --ci"
+        run: nix-shell shell --run "treefmt --ci"
+      - name: Lint
+        run: nix-shell shell --run "cargo clippy -- -D warnings && cargo clippy --no-default-features -- -D warnings"
       - name: Run Tests
-        run: nix-shell shell --command "cargo test --all"
+        run: nix-shell shell --run "cargo test --all && cargo test --all --no-default-features"
