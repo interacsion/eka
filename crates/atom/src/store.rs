@@ -1,4 +1,5 @@
 //! # Atom Store Interface
+#[cfg(feature = "git")]
 pub mod git;
 use std::path::{Path, PathBuf};
 

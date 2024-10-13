@@ -21,9 +21,17 @@ thiserror.workspace   = true
 tokio.workspace       = true
 toml_edit.workspace   = true
 tracing.workspace     = true
+url.workspace         = true
 
-config = { path = "../config", features = ["git"] }
-gix    = { workspace = true, default-features = false, features = ["serde"] }
+config = { path = "../config" }
+gix = { workspace = true, default-features = false, features = [
+  "serde",
+], optional = true }
+gix-url = { version = "^0.27", features = ["serde"] }
+
+[features]
+default = []
+git     = ["dep:gix", "config/git"]
 
 [dev-dependencies]
 anyhow.workspace   = true

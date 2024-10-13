@@ -26,6 +26,7 @@
 //! point to the original commit from which the Atom's content references, ensuring
 //! it remains live. Ensuring we can trivially verify an Atom's content at any time.
 #![deny(missing_docs)]
+#![cfg_attr(not(feature = "git"), allow(dead_code))]
 
 mod core;
 mod id;

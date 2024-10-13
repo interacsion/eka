@@ -1,9 +1,4 @@
-workspace.members = [
-  "crates/atom",
-  "crates/config",
-  "crates/nixec",
-  "crates/resolve",
-]
+workspace.members = ["crates/atom", "crates/config", "crates/nixec"]
 
 [package]
 edition = "2021"
@@ -67,8 +62,10 @@ gix = { version = "^0.66", default-features = false, features = [
 ] }
 
 [features]
-default = ["git"]
-git     = ["gix"]
+default = ["stores"]
+git     = ["gix", "atom/git"]
+stores  = ["git"]
 
 [patch.crates-io]
-gix = { git = "https://github.com/nrdxp/gitoxide", tag = "gix-v0.66.0-eka" }
+gix     = { git = "https://github.com/nrdxp/gitoxide", tag = "gix-v0.66.0-eka" }
+gix-url = { git = "https://github.com/nrdxp/gitoxide", tag = "gix-v0.66.0-eka" }

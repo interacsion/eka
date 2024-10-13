@@ -4,10 +4,12 @@
 //! to a store implementation. Currently, only a Git store is implemented, but future
 //! work will likely include more alternate backends, e.g. an S3 bucket.
 pub mod error;
+#[cfg(feature = "git")]
 pub mod git;
 
 use crate::{id::Id, AtomId};
 
+#[cfg(feature = "git")]
 use git::GitContent;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -42,6 +44,7 @@ type ValidAtoms = HashMap<Id, PathBuf>;
 /// Contains the content pertinent to a specific implementation for reporting results
 /// to the user.
 pub enum Content {
+    #[cfg(feature = "git")]
     /// Content specific to the Git implementation.
     Git(GitContent),
 }

@@ -5,30 +5,34 @@ use clap::Parser;
 pub struct Args {
     #[command(flatten)]
     #[cfg(feature = "git")]
-    git: GitArgs,
+    git: git::Args,
 }
 
-#[derive(Parser, Debug)]
-#[command(next_help_heading = "Git Options")]
-struct GitArgs {
-    /// The target remote to initialize
-    #[arg(long, short = 't', default_value_t = git::default_remote().to_owned(), name = "TARGET")]
-    remote: String,
+#[cfg(feature = "git")]
+mod git {
+    use atom::store::git;
+    use clap::Parser;
+    #[derive(Parser, Debug)]
+    #[command(next_help_heading = "Git Options")]
+    pub(super) struct Args {
+        /// The target remote to initialize
+        #[arg(long, short = 't', default_value_t = git::default_remote().to_owned(), name = "TARGET")]
+        pub(super) remote: String,
+    }
 }
 
-use atom::store::git;
-pub(super) fn run(store: Option<Detected>, args: Args) -> Result<(), git::Error> {
-    use atom::store::Init;
-    if let Some(store) = store {
-        match store {
-            Detected::Git(repo) => {
-                let repo = repo.to_thread_local();
-                let remote = repo
-                    .find_remote(args.git.remote.as_str())
-                    .map_err(Box::new)?;
-                remote.ekala_init()?
-            }
+pub(super) fn run(store: Detected, args: Args) -> Result<(), anyhow::Error> {
+    match store {
+        #[cfg(feature = "git")]
+        Detected::Git(repo) => {
+            use atom::store::Init;
+            let repo = repo.to_thread_local();
+            let remote = repo
+                .find_remote(args.git.remote.as_str())
+                .map_err(Box::new)?;
+            remote.ekala_init()?
         }
+        _ => {}
     }
     Ok(())
 }

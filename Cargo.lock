@@ -148,6 +148,7 @@ dependencies = [
  "bstr",
  "config",
  "gix",
+ "gix-url",
  "insta",
  "lazy_static",
  "nom",
@@ -162,6 +163,7 @@ dependencies = [
  "toml_edit",
  "tracing",
  "unic-ucd-category",
+ "url",
 ]
 
 [[package]]
@@ -1450,12 +1452,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
 
 [[package]]
-name = "hex"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-
-[[package]]
 name = "home"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2201,17 +2197,6 @@ dependencies = [
  "web-sys",
  "webpki-roots",
  "windows-registry",
-]
-
-[[package]]
-name = "resolve"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "hex",
- "serde",
- "toml_edit",
- "url",
 ]
 
 [[package]]

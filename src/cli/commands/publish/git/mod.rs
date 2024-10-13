@@ -2,7 +2,7 @@ use super::PublishArgs;
 
 use atom::{
     publish::{
-        error::GitError,
+        error::git::Error,
         git::{GitOutcome, GitResult},
     },
     store::git,
@@ -37,7 +37,7 @@ pub(super) struct GitArgs {
 pub(super) async fn run(
     repo: &ThreadSafeRepository,
     args: PublishArgs,
-) -> GitResult<(Vec<GitResult<GitOutcome>>, Vec<GitError>)> {
+) -> GitResult<(Vec<GitResult<GitOutcome>>, Vec<Error>)> {
     use atom::{
         publish::{git::GitPublisher, Builder, Publish},
         store::NormalizeStorePath,
@@ -62,7 +62,7 @@ pub(super) async fn run(
         };
 
         if paths.is_empty() {
-            return Err(GitError::NotFound);
+            return Err(Error::NotFound);
         }
         publisher.publish(paths)
     } else {

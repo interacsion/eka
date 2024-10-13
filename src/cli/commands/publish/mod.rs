@@ -3,11 +3,7 @@ mod git;
 
 use crate::cli::store::Detected;
 
-use atom::publish::{
-    self,
-    error::{GitError, PublishError},
-    Content,
-};
+use atom::publish::{self, error::PublishError};
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -34,12 +30,14 @@ struct StoreArgs {
 
 use publish::Stats;
 pub(super) async fn run(store: Detected, args: PublishArgs) -> Result<Stats, PublishError> {
-    use Err as Skipped;
-    use Ok as Published;
-    let mut stats = publish::Stats::default();
+    #[cfg_attr(not(feature = "stores"), allow(unused_mut))]
+    let mut stats = Stats::default();
     match store {
         #[cfg(feature = "git")]
         Detected::Git(repo) => {
+            use atom::publish::{error, Content};
+            use Err as Skipped;
+            use Ok as Published;
             let (results, mut errors) = git::run(repo, args).await?;
 
             for res in results {
@@ -72,9 +70,11 @@ pub(super) async fn run(store: Detected, args: PublishArgs) -> Result<Stats, Pub
             tracing::info!(stats.published, stats.skipped, stats.failed);
 
             if !errors.is_empty() {
-                return Err(PublishError::Git(GitError::Failed));
+                return Err(PublishError::Git(error::git::Error::Failed));
             }
         }
+        _ => {}
     }
+
     Ok(stats)
 }

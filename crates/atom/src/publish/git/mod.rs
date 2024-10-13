@@ -15,7 +15,7 @@ mod test;
 
 mod inner;
 
-use super::{error::GitError, Content, PublishOutcome, Record};
+use super::{error::git::Error, Content, PublishOutcome, Record};
 use crate::{
     core::AtomPaths,
     store::{git::Root, NormalizeStorePath},
@@ -32,7 +32,7 @@ type GitAtomId = AtomId<Root>;
 /// The Outcome of an Atom publish attempt to a Git store.
 pub type GitOutcome = PublishOutcome<Root>;
 /// The Result type used for various methods during publishing to a Git store.
-pub type GitResult<T> = Result<T, GitError>;
+pub type GitResult<T> = Result<T, Error>;
 type GitRecord = Record<Root>;
 
 #[derive(Debug)]
@@ -49,7 +49,7 @@ pub struct GitContext<'a> {
     /// The reported root commit according to the remote.
     root: Root,
     /// A [`JoinSet`] of push tasks to avoid blocking on them.
-    push_tasks: RefCell<JoinSet<Result<Vec<u8>, GitError>>>,
+    push_tasks: RefCell<JoinSet<Result<Vec<u8>, Error>>>,
     /// Path buf for efficient tree searches
     buf: RefCell<Vec<u8>>,
 }
@@ -143,7 +143,7 @@ impl<'a> GitPublisher<'a> {
             .ekala_root()
             .map_err(|e| {
                 e.warn();
-                GitError::NotInitialized
+                Error::NotInitialized
             })?;
 
         Ok(GitPublisher {
@@ -166,7 +166,7 @@ fn calculate_capacity(record_count: usize) -> usize {
 use super::StateValidator;
 
 impl<'a> StateValidator<Root> for GitPublisher<'a> {
-    type Error = GitError;
+    type Error = Error;
     type Publisher = GitContext<'a>;
 
     fn validate(publisher: &Self::Publisher) -> Result<ValidAtoms, Self::Error> {
@@ -177,7 +177,7 @@ impl<'a> StateValidator<Root> for GitPublisher<'a> {
             .tree()
             .traverse()
             .breadthfirst(&mut record)
-            .map_err(|_| GitError::NotFound)?;
+            .map_err(|_| Error::NotFound)?;
 
         let cap = calculate_capacity(record.records.len());
         let mut atoms: HashMap<Id, PathBuf> = HashMap::with_capacity(cap);
@@ -195,7 +195,7 @@ impl<'a> StateValidator<Root> for GitPublisher<'a> {
                                     fst = %path.display(),
                                     snd = %duplicate.display(),
                                 );
-                                return Err(GitError::Duplicates);
+                                return Err(Error::Duplicates);
                             }
                             atoms.insert(atom.id, path);
                         }
@@ -212,7 +212,7 @@ impl<'a> StateValidator<Root> for GitPublisher<'a> {
 }
 
 impl<'a> Builder<'a, Root> for GitPublisher<'a> {
-    type Error = GitError;
+    type Error = Error;
     type Publisher = GitContext<'a>;
 
     fn build(&self) -> Result<(ValidAtoms, Self::Publisher), Self::Error> {
@@ -257,7 +257,7 @@ use std::collections::HashMap;
 impl<'a> super::private::Sealed for GitContext<'a> {}
 
 impl<'a> Publish<Root> for GitContext<'a> {
-    type Error = GitError;
+    type Error = Error;
 
     /// Publishes atoms.
     ///
@@ -374,7 +374,7 @@ impl<'a> GitContext<'a> {
     /// which were offloaded to a seperate thread of execution of Tokio's runtime.
     ///
     /// An errors that occurred will be collected into a [`Vec`].
-    pub async fn await_pushes(&self, errors: &mut Vec<GitError>) {
+    pub async fn await_pushes(&self, errors: &mut Vec<Error>) {
         use tokio::sync::Mutex;
 
         let tasks = Mutex::new(self.push_tasks.borrow_mut());
@@ -390,7 +390,7 @@ impl<'a> GitContext<'a> {
                     errors.push(e);
                 }
                 Err(e) => {
-                    errors.push(GitError::JoinFailed(e));
+                    errors.push(Error::JoinFailed(e));
                 }
             }
         }

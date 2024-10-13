@@ -35,7 +35,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             publish::run(store.await?, args).await?;
         }
 
-        Commands::Init(args) => init::run(store.await.ok(), args)?,
+        Commands::Init(args) => init::run(store.await?, args)?,
     }
     Ok(())
 }

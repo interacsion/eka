@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     core::AtomPaths,
-    publish::{error::GitError, ATOM_ORIGIN},
+    publish::{error::git::Error, ATOM_ORIGIN},
     store::git,
     Atom, AtomId, Manifest,
 };
@@ -33,7 +33,7 @@ impl<'a> GitContext<'a> {
             Ok(content)
         })?;
 
-        Manifest::get_atom(&content).map_err(|e| GitError::Invalid(e, Box::new(path.into())))
+        Manifest::get_atom(&content).map_err(|e| Error::Invalid(e, Box::new(path.into())))
     }
 
     /// Compute the [`ObjectId`] of the given proto-object in memory
@@ -74,10 +74,10 @@ impl<'a> GitContext<'a> {
         let paths = AtomPaths::new(path);
         let entry = self
             .tree_search(paths.spec())?
-            .ok_or(GitError::NotAnAtom(path.into()))?;
+            .ok_or(Error::NotAnAtom(path.into()))?;
 
         if !entry.mode().is_blob() {
-            return Err(GitError::NotAnAtom(path.into()));
+            return Err(Error::NotAnAtom(path.into()));
         }
 
         let lock = self
@@ -92,7 +92,7 @@ impl<'a> GitContext<'a> {
             .and_then(|spec| {
                 let id = AtomId::compute(&self.commit, spec.id.clone())?;
                 if self.root != *id.root() {
-                    return Err(GitError::InconsistentRoot {
+                    return Err(Error::InconsistentRoot {
                         remote: self.root,
                         atom: *id.root(),
                     });

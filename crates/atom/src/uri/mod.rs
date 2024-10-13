@@ -23,8 +23,8 @@ use serde::{Deserialize, Serialize};
 
 use super::id::Id;
 use crate::id::Error;
+use gix_url::Url;
 
-use gix::Url;
 use semver::VersionReq;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -245,7 +245,7 @@ pub enum UriError {
     InvalidVersionReq(#[from] semver::Error),
     /// The Url did not parse correctly.
     #[error(transparent)]
-    UrlParse(#[from] gix::url::parse::Error),
+    UrlParse(#[from] gix_url::parse::Error),
     /// There is no alias in the configuration matching the one given in the URI.
     #[error("The passed alias does not exist: {0}")]
     NoAlias(String),
@@ -327,7 +327,7 @@ impl<'a> UrlRef<'a> {
     }
 
     fn to_url(&self) -> Option<Url> {
-        use gix::url::Scheme;
+        use gix_url::Scheme;
 
         let (frag, resolved) = self.render_alias().unwrap_or((self.frag?, None));
 
