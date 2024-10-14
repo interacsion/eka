@@ -15,16 +15,16 @@
 //! ```console
 //! ❯ git ls-remote
 //! From https://github.com/ekala-project/eka
-//! ceebaca6d44c4cda555db3fbf687c0604c4818eb        refs/atoms/ひらがな/0.1.0
-//! a87bff5ae43894a158dadf40938c775cb5b62d4b        refs/atoms/ひらがな/_specs/0.1.0
-//! 9f17c8c816bd1de6f8aa9c037d1b529212ab2a02        refs/atoms/ひらがな/_srcs/0.1.0
+//! ceebaca6d44c4cda555db3fbf687c0604c4818eb        refs/atoms/ひらがな/0.1.0/atom
+//! a87bff5ae43894a158dadf40938c775cb5b62d4b        refs/atoms/ひらがな/0.1.0/spec
+//! 9f17c8c816bd1de6f8aa9c037d1b529212ab2a02        refs/atoms/ひらがな/0.1.0/src
 //! ```
 //!
-//! Here the 0.1.0 ref points to the Atom's contents in full. The `_spec` refs points
+//! Here the `atom` ref points to the Atom's contents in full. The `spec` ref points
 //! to a git tree object containing only the manifest and its lock file, which will be
-//! important for efficient resolution (not yet implemented). The refs under `_srcs`
-//! point to the original commit from which the Atom's content references, ensuring
-//! it remains live. Ensuring we can trivially verify an Atom's content at any time.
+//! important for efficient resolution (not yet implemented). The refs under `src`
+//! points to the original commit from which the Atom's content references, ensuring
+//! it remains live, allowing trivially verification.
 #![deny(missing_docs)]
 #![cfg_attr(not(feature = "git"), allow(dead_code))]
 

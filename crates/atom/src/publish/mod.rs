@@ -135,6 +135,7 @@ impl<R> Record<R> {
 }
 
 const EMPTY_SIG: &str = "";
+const ATOM: &str = "atom";
 const ATOM_FORMAT_VERSION: &str = "1";
 const ATOM_REF_TOP_LEVEL: &str = "atoms";
 const ATOM_MANIFEST: &str = "spec";

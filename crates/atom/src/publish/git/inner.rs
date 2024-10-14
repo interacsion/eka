@@ -10,11 +10,10 @@ use gix::objs::tree::Entry as AtomEntry;
 use gix::worktree::object::Tree as AtomTree;
 use gix::{ObjectId, Reference};
 
-use super::super::{ATOM_FORMAT_VERSION, ATOM_MANIFEST, EMPTY_SIG};
 use super::{AtomContext, AtomRef, GitContext, GitResult, RefKind};
 use crate::core::AtomPaths;
-use crate::publish::ATOM_ORIGIN;
 use crate::publish::error::git::Error;
+use crate::publish::{ATOM, ATOM_FORMAT_VERSION, ATOM_MANIFEST, ATOM_ORIGIN, EMPTY_SIG};
 use crate::store::git;
 use crate::{Atom, AtomId, Manifest};
 impl<'a> GitContext<'a> {
@@ -118,9 +117,9 @@ use std::fmt;
 impl<'a> fmt::Display for AtomRef<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
-            RefKind::Content => write!(f, "{}/{}", self.prefix, self.version),
-            RefKind::Spec => write!(f, "{}/_{}s/{}", self.prefix, ATOM_MANIFEST, self.version),
-            RefKind::Origin => write!(f, "{}/_{}s/{}", self.prefix, ATOM_ORIGIN, self.version),
+            RefKind::Content => write!(f, "{}/{}/{}", self.prefix, self.version, ATOM),
+            RefKind::Origin => write!(f, "{}/{}/{}", self.prefix, self.version, ATOM_ORIGIN),
+            RefKind::Spec => write!(f, "{}/{}/{}", self.prefix, self.version, ATOM_MANIFEST),
         }
     }
 }
