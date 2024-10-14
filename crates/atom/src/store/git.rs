@@ -8,16 +8,16 @@
 #[cfg(test)]
 pub(crate) mod test;
 
-use crate::id::CalculateRoot;
+use std::sync::OnceLock;
 
 use bstr::BStr;
-use gix::{
-    discover::upwards::Options,
-    sec::{trust::Mapping, Trust},
-    Commit, ObjectId, ThreadSafeRepository,
-};
-use std::sync::OnceLock;
+use gix::discover::upwards::Options;
+use gix::sec::Trust;
+use gix::sec::trust::Mapping;
+use gix::{Commit, ObjectId, ThreadSafeRepository};
 use thiserror::Error as ThisError;
+
+use crate::id::CalculateRoot;
 
 /// An error encountered during initialization or other git store operations.
 #[derive(ThisError, Debug)]
@@ -95,7 +95,7 @@ pub fn repo() -> Result<Option<&'static ThreadSafeRepository>, Box<gix::discover
         Err(e) => {
             error = Some(e);
             None
-        }
+        },
     });
     if let Some(e) = error {
         Err(e)
@@ -152,6 +152,7 @@ pub fn default_remote() -> &'static str {
 use std::ops::Deref;
 impl Deref for Root {
     type Target = ObjectId;
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -159,6 +160,7 @@ impl Deref for Root {
 
 impl<'a> CalculateRoot<Root> for Commit<'a> {
     type Error = Error;
+
     fn calculate_root(&self) -> Result<Root, Self::Error> {
         use gix::traverse::commit::simple::{CommitTimeOrder, Sorting};
         // FIXME: we rely on a custom crate patch to search the commit graph
@@ -187,15 +189,19 @@ impl<'a> CalculateRoot<Root> for Commit<'a> {
     }
 }
 
-use super::{NormalizeStorePath, QueryStore};
-use gix::Repository;
 use std::path::{Path, PathBuf};
+
+use gix::Repository;
+
+use super::{NormalizeStorePath, QueryStore};
 
 impl NormalizeStorePath for Repository {
     type Error = Error;
+
     fn normalize<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, Error> {
-        use path_clean::PathClean;
         use std::fs;
+
+        use path_clean::PathClean;
         let path = path.as_ref();
 
         let rel_repo_root = self.work_dir().ok_or(Error::NoWorkDir)?;
@@ -248,6 +254,7 @@ trait EkalaRemote {
 
 impl<'repo> EkalaRemote for gix::Remote<'repo> {
     type Error = Error;
+
     fn try_symbol(&self) -> Result<&str, Self::Error> {
         use gix::remote::Name;
         self.name()
@@ -265,6 +272,7 @@ const V1_ROOT: &str = "refs/tags/ekala/root/v1";
 use super::Init;
 impl<'repo> Init<Root, ObjectId> for gix::Remote<'repo> {
     type Error = Error;
+
     /// Determines if this remote is a valid Ekala store by pulling HEAD and the root
     /// tag, ensuring the latter is actually the root of HEAD, returning the root.
     fn ekala_root(&self) -> Result<Root, Self::Error> {
@@ -293,6 +301,7 @@ impl<'repo> Init<Root, ObjectId> for gix::Remote<'repo> {
             }
         })?
     }
+
     /// Sync with the given remote and get the most up to date HEAD according to it.
     fn sync(&self) -> Result<ObjectId, Error> {
         self.get_ref("HEAD")
@@ -300,8 +309,9 @@ impl<'repo> Init<Root, ObjectId> for gix::Remote<'repo> {
 
     /// Initialize the repository by calculating the root, according to the latest HEAD.
     fn ekala_init(&self) -> Result<(), Error> {
-        use crate::CalculateRoot;
         use gix::refs::transaction::PreviousValue;
+
+        use crate::CalculateRoot;
 
         let name = self.try_symbol()?;
         let head = self.sync()?;
@@ -349,6 +359,7 @@ fn setup_line_renderer(
 
 impl<'repo> super::QueryStore<ObjectId> for gix::Remote<'repo> {
     type Error = Error;
+
     /// returns the git object ids for the given references
     fn get_refs<Spec>(
         &self,
@@ -357,11 +368,13 @@ impl<'repo> super::QueryStore<ObjectId> for gix::Remote<'repo> {
     where
         Spec: AsRef<BStr>,
     {
-        use gix::progress::tree::Root;
-        use gix::remote::ref_map::Options;
-        use gix::remote::{fetch::Tags, Direction};
         use std::collections::HashSet;
         use std::sync::atomic::AtomicBool;
+
+        use gix::progress::tree::Root;
+        use gix::remote::Direction;
+        use gix::remote::fetch::Tags;
+        use gix::remote::ref_map::Options;
 
         let tree = Root::new();
         let sync_progress = tree.add_child("sync");

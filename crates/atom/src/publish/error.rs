@@ -15,9 +15,11 @@ pub enum PublishError {
 #[cfg(feature = "git")]
 pub mod git {
     //! # Git Publishing Errors
-    use crate::store::git::Root;
-    use gix::object;
     use std::path::PathBuf;
+
+    use gix::object;
+
+    use crate::store::git::Root;
     /// An error representing a failure during publishing to a Git Ekala store.
     #[derive(thiserror::Error, Debug)]
     pub enum Error {
@@ -103,13 +105,13 @@ pub mod git {
                         remote_root = %**remote,
                         suggest = Error::INCONSISTENT_ROOT_SUGGESTION
                     );
-                }
+                },
                 Error::Invalid(e, path) => {
                     tracing::warn!(message = %self, path = %path.display(), message = format!("\n{}", e));
-                }
+                },
                 Error::NotAnAtom(path) => {
                     tracing::warn!(message = %self, path = %path.display());
-                }
+                },
                 Error::Failed => (),
                 _ => tracing::warn!(message = %self),
             }

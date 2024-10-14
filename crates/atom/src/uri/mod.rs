@@ -16,18 +16,17 @@
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use gix_url::Url;
+use semver::VersionReq;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use super::id::Id;
 use crate::id::Error;
-use gix_url::Url;
-
-use semver::VersionReq;
-use std::collections::HashMap;
-use thiserror::Error;
 
 #[derive(Debug)]
 struct Aliases(&'static HashMap<&'static str, &'static str>);
@@ -75,14 +74,12 @@ struct AtomRef<'a> {
     version: Option<&'a str>,
 }
 
-use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_until},
-    character::complete::digit1,
-    combinator::{all_consuming, map, not, opt, peek, rest, verify},
-    sequence::{separated_pair, tuple},
-    IResult, ParseTo,
-};
+use nom::branch::alt;
+use nom::bytes::complete::{tag, take_until};
+use nom::character::complete::digit1;
+use nom::combinator::{all_consuming, map, not, opt, peek, rest, verify};
+use nom::sequence::{separated_pair, tuple};
+use nom::{IResult, ParseTo};
 
 fn parse(input: &str) -> Ref {
     let (rest, url) = match url(input) {
@@ -120,7 +117,7 @@ fn parse_alias(input: &str) -> (&str, Option<&str>) {
                 )),
                 map(rest, |a| (a, "", ())),
             )),
-            |(a, _, _)| a,
+            |(a, ..)| a,
         ),
         // not an scp url
         |a| {
@@ -154,7 +151,7 @@ fn ssh_host(input: &str) -> IResult<&str, (&str, &str)> {
         Some((_, port_str, second_colon)) => {
             let full_host = &input[..(host.len() + colon.len() + port_str.len())];
             Ok((rest, (full_host, second_colon)))
-        }
+        },
         None => Ok((rest, (host, colon))),
     }
 }
@@ -186,11 +183,7 @@ fn parse_url(url: &str) -> IResult<&str, UrlPrefix> {
 }
 
 fn not_empty(input: &str) -> Option<&str> {
-    if input.is_empty() {
-        None
-    } else {
-        Some(input)
-    }
+    if input.is_empty() { None } else { Some(input) }
 }
 
 fn empty_none<'a>((rest, opt): (&'a str, Option<&'a str>)) -> (&'a str, Option<&'a str>) {
@@ -272,7 +265,7 @@ impl Aliases {
             Some((s, rest)) => {
                 let res = self.get_alias(s)?;
                 Cow::Owned(format!("{res}/{rest}"))
-            }
+            },
             None => Cow::Borrowed(res),
         };
 
@@ -282,6 +275,7 @@ impl Aliases {
 
 impl Deref for Aliases {
     type Target = HashMap<&'static str, &'static str>;
+
     fn deref(&self) -> &Self::Target {
         self.0
     }
@@ -434,6 +428,7 @@ impl<'a> AtomRef<'a> {
 
 impl<'a> TryFrom<Ref<'a>> for Uri {
     type Error = UriError;
+
     fn try_from(refs: Ref<'a>) -> Result<Self, Self::Error> {
         let Ref { url, atom } = refs;
 
@@ -449,6 +444,7 @@ impl<'a> TryFrom<Ref<'a>> for Uri {
 
 impl<'a> TryFrom<UrlRef<'a>> for Url {
     type Error = UriError;
+
     fn try_from(refs: UrlRef<'a>) -> Result<Self, Self::Error> {
         match refs.to_url() {
             Some(url) => Ok(url),
@@ -459,6 +455,7 @@ impl<'a> TryFrom<UrlRef<'a>> for Url {
 
 impl FromStr for Uri {
     type Err = UriError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let r = Ref::from(s);
         Uri::try_from(r)
@@ -467,6 +464,7 @@ impl FromStr for Uri {
 
 impl<'a> TryFrom<&'a str> for Uri {
     type Error = UriError;
+
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
         s.parse()
     }
@@ -494,11 +492,13 @@ impl Uri {
     pub fn url(&self) -> Option<&Url> {
         self.url.as_ref()
     }
+
     #[must_use]
     /// Returns the Atom identifier parsed from the URI.
     pub fn id(&self) -> &Id {
         &self.id
     }
+
     #[must_use]
     /// Returns the Atom version parsed from the URI.
     pub fn version(&self) -> Option<&VersionReq> {

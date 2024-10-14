@@ -15,18 +15,18 @@ mod test;
 
 mod inner;
 
-use super::{error::git::Error, Content, PublishOutcome, Record};
-use crate::{
-    core::AtomPaths,
-    store::{git::Root, NormalizeStorePath},
-    Atom, AtomId,
-};
-
-use gix::Commit;
-use gix::{ObjectId, Repository, Tree};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+
+use gix::{Commit, ObjectId, Repository, Tree};
 use tokio::task::JoinSet;
+
+use super::error::git::Error;
+use super::{Content, PublishOutcome, Record};
+use crate::core::AtomPaths;
+use crate::store::NormalizeStorePath;
+use crate::store::git::Root;
+use crate::{Atom, AtomId};
 
 type GitAtomId = AtomId<Root>;
 /// The Outcome of an Atom publish attempt to a Git store.
@@ -198,7 +198,7 @@ impl<'a> StateValidator<Root> for GitPublisher<'a> {
                                 return Err(Error::Duplicates);
                             }
                             atoms.insert(atom.id, path);
-                        }
+                        },
                         Err(e) => e.warn(),
                     }
                 }
@@ -228,21 +228,25 @@ impl GitContent {
     pub fn spec(&self) -> &gix::refs::Reference {
         &self.spec
     }
+
     /// Return a reference to the Atom src Git ref.
     #[must_use]
     pub fn origin(&self) -> &gix::refs::Reference {
         &self.origin
     }
+
     /// Return a reference to the Atom content ref.
     #[must_use]
     pub fn content(&self) -> &gix::refs::Reference {
         &self.content
     }
+
     /// Return a reference to the path to the Atom.
     #[must_use]
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
+
     /// Return a reference to the atom ref prefix.
     #[must_use]
     pub fn ref_prefix(&self) -> &String {
@@ -250,9 +254,10 @@ impl GitContent {
     }
 }
 
+use std::collections::HashMap;
+
 use super::Publish;
 use crate::id::Id;
-use std::collections::HashMap;
 
 impl<'a> super::private::Sealed for GitContext<'a> {}
 
@@ -261,12 +266,15 @@ impl<'a> Publish<Root> for GitContext<'a> {
 
     /// Publishes atoms.
     ///
-    /// This function processes a collection of paths, each representing an atom to be published. The publishing
-    /// process includes path normalization, existence checks, and actual publishing attempts.
+    /// This function processes a collection of paths, each representing an atom to be published.
+    /// The publishing process includes path normalization, existence checks, and actual
+    /// publishing attempts.
     ///
     /// # Path Normalization
-    /// - First attempts to interpret each path as relative to the caller's current location inside the repository.
-    /// - If normalization fails (e.g., in a bare repository), falls back to treating the path as already relative to the repo root.
+    /// - First attempts to interpret each path as relative to the caller's current location inside
+    ///   the repository.
+    /// - If normalization fails (e.g., in a bare repository), falls back to treating the path as
+    ///   already relative to the repo root.
     /// - The normalized path is used to search the Git history, not the file system.
     ///
     /// # Publishing Process
@@ -285,8 +293,8 @@ impl<'a> Publish<Root> for GitContext<'a> {
     ///
     /// # Return Value
     /// Returns a vector of results types (`Vec<Result<PublishOutcome<T>, Self::Error>>`), where the
-    /// outter result represents whether an atom has failed, and the inner result determines whether an
-    /// atom was safely skipped, e.g. because it already exists..
+    /// outter result represents whether an atom has failed, and the inner result determines whether
+    /// an atom was safely skipped, e.g. because it already exists..
     fn publish<C>(&self, paths: C) -> Vec<GitResult<GitOutcome>>
     where
         C: IntoIterator<Item = PathBuf>,
@@ -306,8 +314,7 @@ impl<'a> Publish<Root> for GitContext<'a> {
     }
 
     fn publish_atom<P: AsRef<Path>>(&self, path: P) -> GitResult<GitOutcome> {
-        use Err as Skipped;
-        use Ok as Published;
+        use {Err as Skipped, Ok as Published};
 
         let atom = AtomContext::set(path.as_ref(), self)?;
 
@@ -385,13 +392,13 @@ impl<'a> GitContext<'a> {
                     if !output.is_empty() {
                         tracing::info!(output = %String::from_utf8_lossy(&output));
                     }
-                }
+                },
                 Ok(Err(e)) => {
                     errors.push(e);
-                }
+                },
                 Err(e) => {
                     errors.push(Error::JoinFailed(e));
-                }
+                },
             }
         }
     }

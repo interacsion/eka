@@ -1,15 +1,12 @@
-#[cfg(feature = "git")]
-use gix::ThreadSafeRepository;
+use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use etcetera::BaseStrategy;
+use figment::providers::{Env, Format, Toml};
+use figment::{Figment, Metadata, Provider};
+#[cfg(feature = "git")]
+use gix::ThreadSafeRepository;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-use figment::{
-    providers::{Env, Format, Toml},
-    Figment, Metadata, Provider,
-};
-use std::sync::LazyLock;
 
 /// Provide a lazyily instantiated static reference to
 /// a config object parsed from canonical locations
@@ -83,6 +80,7 @@ impl Provider for Config {
     fn metadata(&self) -> figment::Metadata {
         Metadata::named("Eka CLI Config")
     }
+
     fn data(
         &self,
     ) -> Result<figment::value::Map<figment::Profile, figment::value::Dict>, figment::Error> {

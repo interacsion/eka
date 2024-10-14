@@ -1,9 +1,8 @@
 #[cfg(feature = "git")]
 use atom::store::git;
-use thiserror::Error;
-
 #[cfg(feature = "git")]
 use gix::ThreadSafeRepository;
+use thiserror::Error;
 
 #[non_exhaustive]
 #[derive(Clone, Debug)]

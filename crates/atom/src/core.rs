@@ -1,9 +1,10 @@
-use std::{borrow::Cow, path::Path};
-
-use super::id::Id;
+use std::borrow::Cow;
+use std::path::Path;
 
 use semver::Version;
 use serde::{Deserialize, Serialize};
+
+use super::id::Id;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 /// Represents the deserialized form of an Atom, directly constructed from the TOML manifest.
@@ -69,9 +70,11 @@ impl AtomPaths<PathBuf> {
     pub fn lock(&self) -> &Path {
         self.lock.as_ref()
     }
+
     pub fn spec(&self) -> &Path {
         self.spec.as_ref()
     }
+
     pub fn content(&self) -> &Path {
         self.content.as_ref()
     }

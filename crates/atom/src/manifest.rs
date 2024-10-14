@@ -1,12 +1,17 @@
 //! # Atom Manifest
 //!
 //! Provides the core types for working with an Atom's manifest format.
-use crate::Atom;
-use serde::{Deserialize, Serialize};
+mod depends;
+
+use std::collections::HashMap;
 use std::str::FromStr;
+
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use toml_edit::de;
-use toml_edit::DocumentMut;
+use toml_edit::{DocumentMut, de};
+
+use crate::Atom;
+use crate::id::Id;
 
 /// Errors which occur during manifest (de)serialization.
 #[derive(Error, Debug)]
@@ -53,6 +58,7 @@ impl Manifest {
 
 impl FromStr for Manifest {
     type Err = de::Error;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         de::from_str(s)
     }

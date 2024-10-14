@@ -1,17 +1,13 @@
-use super::PublishArgs;
-
-use atom::{
-    publish::{
-        error::git::Error,
-        git::{GitOutcome, GitResult},
-    },
-    store::git,
-};
-use clap::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use atom::publish::error::git::Error;
+use atom::publish::git::{GitOutcome, GitResult};
+use atom::store::git;
+use clap::Parser;
 use gix::ThreadSafeRepository;
+
+use super::PublishArgs;
 
 #[derive(Parser, Debug)]
 #[command(next_help_heading = "Git Options")]
@@ -38,11 +34,11 @@ pub(super) async fn run(
     repo: &ThreadSafeRepository,
     args: PublishArgs,
 ) -> GitResult<(Vec<GitResult<GitOutcome>>, Vec<Error>)> {
-    use atom::{
-        publish::{git::GitPublisher, Builder, Publish},
-        store::NormalizeStorePath,
-    };
     use std::path::Path;
+
+    use atom::publish::git::GitPublisher;
+    use atom::publish::{Builder, Publish};
+    use atom::store::NormalizeStorePath;
     let repo = repo.to_thread_local();
 
     let GitArgs { remote, spec } = args.store.git;

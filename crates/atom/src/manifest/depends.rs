@@ -36,6 +36,7 @@ impl AtomSrc {
             _ => None,
         }
     }
+
     pub(crate) fn path(self) -> Option<PathBuf> {
         match self {
             AtomSrc::Path(path) => Some(path),

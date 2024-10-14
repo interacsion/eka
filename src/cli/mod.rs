@@ -3,11 +3,11 @@ mod commands;
 pub mod logging;
 mod store;
 
-pub use commands::run;
-pub use logging::init_global_subscriber;
+use std::path::PathBuf;
 
 use clap::Parser;
-use std::path::PathBuf;
+pub use commands::run;
+pub use logging::init_global_subscriber;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

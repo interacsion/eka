@@ -1,11 +1,13 @@
 #[cfg(feature = "git")]
 mod git;
 
-use crate::cli::store::Detected;
-
-use atom::publish::{self, error::PublishError};
-use clap::Parser;
 use std::path::PathBuf;
+
+use atom::publish::error::PublishError;
+use atom::publish::{self};
+use clap::Parser;
+
+use crate::cli::store::Detected;
 
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -35,9 +37,8 @@ pub(super) async fn run(store: Detected, args: PublishArgs) -> Result<Stats, Pub
     match store {
         #[cfg(feature = "git")]
         Detected::Git(repo) => {
-            use atom::publish::{error, Content};
-            use Err as Skipped;
-            use Ok as Published;
+            use atom::publish::{Content, error};
+            use {Err as Skipped, Ok as Published};
             let (results, mut errors) = git::run(repo, args).await?;
 
             for res in results {
@@ -51,15 +52,15 @@ pub(super) async fn run(store: Detected, args: PublishArgs) -> Result<Stats, Pub
                             "Atom successfully published"
                         );
                         tracing::debug!("published under: {}", content.ref_prefix());
-                    }
+                    },
                     Ok(Skipped(id)) => {
                         stats.skipped += 1;
                         tracing::info!(atom.id = %id, "Skipping existing atom")
-                    }
+                    },
                     Err(e) => {
                         stats.failed += 1;
                         errors.push(e)
-                    }
+                    },
                 }
             }
 
@@ -72,8 +73,8 @@ pub(super) async fn run(store: Detected, args: PublishArgs) -> Result<Stats, Pub
             if !errors.is_empty() {
                 return Err(PublishError::Git(error::git::Error::Failed));
             }
-        }
-        _ => {}
+        },
+        _ => {},
     }
 
     Ok(stats)

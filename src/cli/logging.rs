@@ -1,12 +1,13 @@
-use super::{Args, LogArgs};
+use std::str::FromStr;
 
 use clap::Parser;
-use std::str::FromStr;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
-use tracing_subscriber::fmt;
-use tracing_subscriber::Layer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{Layer, fmt};
+
+use super::{Args, LogArgs};
 
 fn get_log_level(args: LogArgs) -> LevelFilter {
     if args.quiet {
@@ -74,8 +75,7 @@ pub mod ansi {
 #[macro_export]
 macro_rules! fatal {
     ($error:expr) => {{
-        use $crate::cli::logging::ansi;
-        use $crate::cli::logging::ANSI;
+        use $crate::cli::logging::{ANSI, ansi};
         let ansi = ANSI.load(std::sync::atomic::Ordering::SeqCst);
         tracing::error!(
             fatal = true,

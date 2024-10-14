@@ -1,5 +1,6 @@
-use crate::cli::store::Detected;
 use clap::Parser;
+
+use crate::cli::store::Detected;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -31,8 +32,8 @@ pub(super) fn run(store: Detected, args: Args) -> Result<(), anyhow::Error> {
                 .find_remote(args.git.remote.as_str())
                 .map_err(Box::new)?;
             remote.ekala_init()?
-        }
-        _ => {}
+        },
+        _ => {},
     }
     Ok(())
 }

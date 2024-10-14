@@ -36,11 +36,10 @@ pub mod publish;
 pub mod store;
 pub mod uri;
 pub use core::Atom;
-pub use id::AtomId;
-pub use id::CalculateRoot;
-pub use manifest::Manifest;
-
 use std::sync::LazyLock;
+
+pub use id::{AtomId, CalculateRoot};
+pub use manifest::Manifest;
 const TOML: &str = "toml";
 const BASE32: base32::Alphabet = base32::Alphabet::Rfc4648HexLower { padding: false };
 static ATOM_EXT: LazyLock<String> = LazyLock::new(|| format!("@.{}", crate::TOML));

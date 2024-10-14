@@ -1,29 +1,22 @@
-use super::{
-    super::{ATOM_FORMAT_VERSION, ATOM_MANIFEST, EMPTY_SIG},
-    AtomContext, AtomRef, GitContext, GitResult, RefKind,
-};
-use crate::{
-    core::AtomPaths,
-    publish::{error::git::Error, ATOM_ORIGIN},
-    store::git,
-    Atom, AtomId, Manifest,
-};
+use std::io::{self, Read};
+use std::os::unix::ffi::OsStrExt;
+use std::path::{Path, PathBuf};
 
-use gix::{
-    actor::Signature,
-    diff::object::Commit as AtomCommit,
-    object::tree::Entry,
-    objs::{tree::Entry as AtomEntry, WriteTo},
-    worktree::object::Tree as AtomTree,
-    ObjectId, Reference,
-};
-use std::{
-    io::{self, Read},
-    os::unix::ffi::OsStrExt,
-    path::Path,
-};
+use gix::actor::Signature;
+use gix::diff::object::Commit as AtomCommit;
+use gix::object::tree::Entry;
+use gix::objs::WriteTo;
+use gix::objs::tree::Entry as AtomEntry;
+use gix::worktree::object::Tree as AtomTree;
+use gix::{ObjectId, Reference};
 
-use std::path::PathBuf;
+use super::super::{ATOM_FORMAT_VERSION, ATOM_MANIFEST, EMPTY_SIG};
+use super::{AtomContext, AtomRef, GitContext, GitResult, RefKind};
+use crate::core::AtomPaths;
+use crate::publish::ATOM_ORIGIN;
+use crate::publish::error::git::Error;
+use crate::store::git;
+use crate::{Atom, AtomId, Manifest};
 impl<'a> GitContext<'a> {
     /// Method to verify the manifest of an entry
     pub(super) fn verify_manifest(&self, obj: &Object, path: &Path) -> GitResult<Atom> {
@@ -149,13 +142,13 @@ impl<'a> AtomContext<'a> {
             false
         }
     }
+
     /// Method to write the atom tree object
     pub(super) fn write_atom_tree(
         &self,
         entries: &AtomEntries,
     ) -> GitResult<MaybeSkipped<AtomTreeId>> {
-        use Err as Skipped;
-        use Ok as Wrote;
+        use {Err as Skipped, Ok as Wrote};
 
         let mut entries: Vec<_> = entries.iter().map(atom_entry).collect();
 
@@ -320,6 +313,7 @@ impl CommittedAtom {
     pub fn commit(&self) -> &AtomCommit {
         &self.commit
     }
+
     #[must_use]
     /// Returns a reference to the tip of this [`CommittedAtom`].
     pub fn tip(&self) -> &ObjectId {

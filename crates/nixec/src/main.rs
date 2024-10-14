@@ -1,10 +1,9 @@
-use birdcage::{process::Command, Birdcage, Exception, Sandbox};
-use std::process::ExitCode;
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-    process::Command as UnsafeCommand,
-};
+use std::path::{Path, PathBuf};
+use std::process::{Command as UnsafeCommand, ExitCode};
+use std::{env, fs};
+
+use birdcage::process::Command;
+use birdcage::{Birdcage, Exception, Sandbox};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

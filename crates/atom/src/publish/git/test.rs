@@ -1,13 +1,14 @@
-use std::{io::Write, os::unix::fs::MetadataExt, str::FromStr};
+use std::io::Write;
+use std::os::unix::fs::MetadataExt;
+use std::str::FromStr;
 
 use anyhow::Context;
-use gix::{prelude::ReferenceExt, ObjectId};
+use gix::ObjectId;
+use gix::prelude::ReferenceExt;
 use tempfile::{Builder, NamedTempFile};
 
-use crate::{
-    publish::{Content, Publish, Record},
-    store::git,
-};
+use crate::publish::{Content, Publish, Record};
+use crate::store::git;
 
 trait MockAtom {
     fn mock(
@@ -25,10 +26,12 @@ impl MockAtom for gix::Repository {
         version: &str,
         description: &str,
     ) -> Result<(NamedTempFile, ObjectId), anyhow::Error> {
-        use crate::{Atom, Manifest};
-        use gix::objs::{tree::Entry, tree::EntryMode, Tree};
+        use gix::objs::Tree;
+        use gix::objs::tree::{Entry, EntryMode};
         use semver::Version;
         use toml_edit::ser;
+
+        use crate::{Atom, Manifest};
 
         let work_dir = self.work_dir().context("No workdir")?;
         let mut atom_file = Builder::new()
@@ -40,6 +43,9 @@ impl MockAtom for gix::Repository {
                 version: Version::from_str(version)?,
                 description: (!description.is_empty()).then_some(description.into()),
             },
+            deps: None,
+            srcs: None,
+            pins: None,
         };
 
         let buf = ser::to_string_pretty(&manifest)?;

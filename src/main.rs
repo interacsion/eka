@@ -1,6 +1,7 @@
+use std::process::ExitCode;
+
 use clap::Parser;
 use eka::cli::{self, Args};
-use std::process::ExitCode;
 
 #[tokio::main]
 async fn main() -> ExitCode {

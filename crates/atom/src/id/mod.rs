@@ -6,12 +6,12 @@
 #[cfg(test)]
 mod tests;
 
-use serde::{Deserialize, Serialize, Serializer};
-
 use std::borrow::Borrow;
 use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
+
+use serde::{Deserialize, Serialize, Serializer};
 use thiserror::Error;
 use unic_ucd_category::GeneralCategory;
 
@@ -80,6 +80,7 @@ impl<R> Serialize for AtomId<R> {
 
 impl<T> Deref for AtomHash<'_, T> {
     type Target = [u8; 32];
+
     fn deref(&self) -> &Self::Target {
         &self.hash
     }
@@ -124,6 +125,7 @@ where
         let root = src.calculate_root()?;
         Ok(AtomId { root, id })
     }
+
     /// The root field, which serves as a derived key for the blake-3 hash used to
     /// identify the Atom in backend implementations.
     pub fn root(&self) -> &R {
@@ -158,6 +160,7 @@ impl Id {
 
         Ok(())
     }
+
     pub(super) fn is_invalid_start(c: char) -> bool {
         matches!(
             GeneralCategory::of(c),
@@ -166,6 +169,7 @@ impl Id {
             || c == '-'
             || !Id::is_valid_char(c)
     }
+
     pub(super) fn is_valid_char(c: char) -> bool {
         matches!(
             GeneralCategory::of(c),
@@ -183,6 +187,7 @@ impl Id {
 
 impl Deref for Id {
     type Target = String;
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }

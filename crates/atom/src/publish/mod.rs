@@ -7,12 +7,14 @@ pub mod error;
 #[cfg(feature = "git")]
 pub mod git;
 
-use crate::{id::Id, AtomId};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[cfg(feature = "git")]
 use git::GitContent;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+
+use crate::AtomId;
+use crate::id::Id;
 
 /// The results of Atom publishing, for reporting to the user.
 pub struct Record<R> {
@@ -112,8 +114,8 @@ pub trait Publish<R>: private::Sealed {
     /// This function takes a single path and publishes the Atom located there, if possible.
     ///
     /// # Return Value
-    /// - An outcome is either the record ([`Record<R>`]) of the successfully
-    ///   publish Atom or the [`crate::AtomId`] if it was safely skipped.
+    /// - An outcome is either the record ([`Record<R>`]) of the successfully publish Atom or the
+    ///   [`crate::AtomId`] if it was safely skipped.
     ///
     /// - The function will return an error ([`Self::Error`]) if the Atom could not be published for
     ///   any reason, e.g. invalid manifests.
@@ -125,6 +127,7 @@ impl<R> Record<R> {
     pub fn id(&self) -> &AtomId<R> {
         &self.id
     }
+
     /// Return a reference to the [`Content`] of the record.
     pub fn content(&self) -> &Content {
         &self.content

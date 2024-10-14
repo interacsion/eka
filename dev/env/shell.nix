@@ -11,6 +11,7 @@ pkgs.mkShell.override { stdenv = pkgs.clangStdenv; } {
     shfmt
     taplo
     nodePackages.prettier
+    atom.fenix.default.rustfmt
     toolchain
     mold
     cargo-insta
