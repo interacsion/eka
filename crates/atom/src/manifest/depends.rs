@@ -29,6 +29,7 @@ pub struct Srcs {
     url: Url,
 }
 
+#[allow(dead_code)]
 impl AtomSrc {
     pub(crate) fn url(self) -> Option<Url> {
         match self {
