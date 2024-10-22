@@ -3,6 +3,7 @@ use clap::Parser;
 use crate::cli::store::Detected;
 
 #[derive(Parser, Debug)]
+#[group(id = "init_args")]
 pub struct Args {
     #[command(flatten)]
     #[cfg(feature = "git")]
@@ -15,6 +16,7 @@ mod git {
     use clap::Parser;
     #[derive(Parser, Debug)]
     #[command(next_help_heading = "Git Options")]
+    #[group(id = "git_args")]
     pub(super) struct Args {
         /// The target remote to initialize
         #[arg(long, short = 't', default_value_t = git::default_remote().to_owned(), name = "TARGET")]
