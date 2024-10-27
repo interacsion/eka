@@ -25,8 +25,7 @@ eka publish [OPTIONS] [PATH]...
 
 This command implements an in-source publishing strategy for Atoms. It creates snapshots separate from the main repository history, enabling efficient, path-based versioning without a separate registry. This lays the groundwork for future decentralized resolution to a standard lock format _a la_ `eka resolve`.
 
-For detailed usage, run `eka publish help`.
-
+For detailed usage, run `eka help`.
 ---
 
 _No more half-measures, no more compromises, and please, no more wrappers..._
