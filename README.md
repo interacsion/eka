@@ -38,7 +38,7 @@ Atom's, themselves, are abstracted to a flat namespace within the store, regardl
   * assuming the user sets `org = "gh:work-org"` in the `eka.toml`. Notice that users can refer to other aliases in the config to "compose" them.
 * `git@gh:owner/repo::my-atom -> ssh://git@github.com:owner/repo`
   * a URL with a user specification defaults to ssh
-* `git:pass@gh:owner/repo::my-atom -> https://git@github.com/owner/repo`
+* `git:pass@gh:owner/repo::my-atom -> https://git:pass@github.com/owner/repo`
   * a user:pass combo defaults to https
 * `http://gh:owner/repo::my-atom -> http://github.com/owner/repo`
   * it is possible to explicate the scheme where necessary, but the heuristics try to make this uncommon
