@@ -31,7 +31,7 @@ _No more half-measures, no more compromises, and please, no more wrappers..._
 
 ## Provisional Road Map
 
-Eka is still fairly early in development, however, the foundation piece, the atom format is more or less stable, in isolation. The following is an outline of the steps along the path toward a relatively stable first cut of eka:
+Eka is still fairly early in development, however, the foundation piece, the git atom store format is more or less complete. The following is an outline of the steps along the path toward a relatively stable first cut of eka (will be expanded as we go):
 - [x] define atom format
   - [x] implement git atom store
   - [ ] implement s3 atom store
