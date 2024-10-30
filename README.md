@@ -29,4 +29,30 @@ For more detailed usage, run `eka help`.
 
 _No more half-measures, no more compromises, and please, no more wrappers..._
 
+## Provisional Road Map
+
+Eka is still fairly early in development, however, the foundation piece, the atom format is more or less stable, in isolation. The following is an outline of the steps along the path toward a relatively stable first cut of eka:
+- [x] define atom format
+  - [x] implement git atom store
+  - [ ] implement s3 atom store
+  - [ ] ... decide on other atom storage mechanisms for 1.0
+- [ ] integrate eka with atom modules
+  - [x] implement the [atom](https://github.com/ekala-project/atom) module system
+  - [ ] define a clean interface between the Nix module system for atom's and eka
+    - [ ] implement the (pure nix) PoC manifest (with revisions) in Eka directly
+- [ ] implement atom dependencies
+  - [ ] implement "shallow" dependency resolution algorithm
+  - [ ] implement "deep" dependency resolution using an SAT solver (resolvo crate)
+- [ ] implement eka plugins
+  - [ ] define cross-language plugin interface
+  - [ ] allow plugins to extend the atom manifest in a principled (type-safe) manner
+- [ ] implement cli subcommands
+  - [x] publish subcommand (for git stores)
+  - [ ] init subcommand
+    - [x] git store initialization
+    - [ ] user friendly initilization flow
+    - [ ] init other atom stores (dependent on store implementation)
+  - [ ] `list` subcommand
+  - [ ] add more here as they are decided
+
 [eos]: https://github.com/ekala-project/eos-gateway
