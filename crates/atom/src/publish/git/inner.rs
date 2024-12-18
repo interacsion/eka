@@ -235,13 +235,17 @@ impl<'a> CommittedAtom {
         let Self { id, .. } = self;
 
         // filter out the content tree
-        let entries: Vec<_> = atom
+        let mut entries: Vec<_> = atom
             .atom
             .entries
             .clone()
             .into_iter()
             .filter_map(|e| e.mode().is_blob().then_some(atom_entry(&e)))
             .collect();
+
+        if entries.len() > 1 {
+            entries.sort_unstable();
+        }
 
         let spec_tree = AtomTree { entries };
         let spec = atom.git.repo.write_object(spec_tree)?.detach();
