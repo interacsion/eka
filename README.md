@@ -20,6 +20,7 @@ To bridge this gap, Eka's working design incorporates:
 In order to provide a polished and simple UI, atom's have a convenient URI format which naturally help address them.
 
 Conceptually, an atom URI is just a URL with a configurable shortener mechanism (aliases), sane defaults to help elide the scheme in many scenarios, and a custom extension at the end to address atoms unambiguously; abstractly expressed as:
+
 ```
 [scheme://][[user[:pass]@][url-alias:][url-fragment::]atom-id[@version]
 ```
@@ -30,18 +31,18 @@ Below are some examples of atom URIs, with the URL portion expanded to demonstra
 
 Atom's, themselves, are abstracted to a flat namespace within the store, regardless of its physical location. To demonstrate this, in the following examples, say we have an atom manifest in the git repo at `foo/bar/my@.toml` which species the `atom.id` in the TOML as `my-atom`:
 
-* `gh:owner/repo::my-atom@^1 -> https://github.com/owner/repo`
-  * the `@^1` is a semantic version request
-* `gl:owner/repo::my-atom -> https://gitlab.com/owner/repo`
-  * no version (`@`) means fetch the latest
-* `org:repo::my-atom@0.1.0 -> https://github.com/work-org/repo`
-  * assuming the user sets `org = "gh:work-org"` in the `eka.toml`. Notice that users can refer to other aliases in the config to "compose" them.
-* `git@gh:owner/repo::my-atom -> ssh://git@github.com:owner/repo`
-  * a URL with a user specification defaults to ssh
-* `git:pass@gh:owner/repo::my-atom -> https://git:pass@github.com/owner/repo`
-  * a user:pass combo defaults to https
-* `http://gh:owner/repo::my-atom -> http://github.com/owner/repo`
-  * it is possible to explicate the scheme where necessary, but the heuristics try to make this uncommon
+- `gh:owner/repo::my-atom@^1 -> https://github.com/owner/repo`
+  - the `@^1` is a semantic version request
+- `gl:owner/repo::my-atom -> https://gitlab.com/owner/repo`
+  - no version (`@`) means fetch the latest
+- `org:repo::my-atom@0.1.0 -> https://github.com/work-org/repo`
+  - assuming the user sets `org = "gh:work-org"` in the `eka.toml`. Notice that users can refer to other aliases in the config to "compose" them.
+- `git@gh:owner/repo::my-atom -> ssh://git@github.com:owner/repo`
+  - a URL with a user specification defaults to ssh
+- `git:pass@gh:owner/repo::my-atom -> https://git:pass@github.com/owner/repo`
+  - a user:pass combo defaults to https
+- `http://gh:owner/repo::my-atom -> http://github.com/owner/repo`
+  - it is possible to explicate the scheme where necessary, but the heuristics try to make this uncommon
 
 ## Usage
 
@@ -60,6 +61,7 @@ _No more half-measures, no more compromises, and please, no more wrappers..._
 ## Provisional Road Map
 
 Eka is still fairly early in development, however, the foundation piece, the git atom store format is more or less complete. The following is an outline of the steps along the path toward a relatively stable first cut of eka (will be expanded as we go):
+
 - [x] define atom format
   - [x] implement git atom store
   - [ ] implement s3 atom store
