@@ -2,6 +2,8 @@
 //!
 //! Provides the core types for working with an Atom's manifest format.
 mod depends;
+#[cfg(test)]
+mod test;
 
 use std::collections::HashMap;
 use std::str::FromStr;

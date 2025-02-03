@@ -1,19 +1,33 @@
 use std::path::PathBuf;
 
-use semver::Version;
+use semver::VersionReq;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(
+    rename_all = "lowercase",
+    expecting = "requires only a `path` or `url` key with optional `ref`"
+)]
 enum Src {
-    Url(Url),
     Path(PathBuf),
+    #[serde(untagged)]
+    Url {
+        url: Url,
+        #[cfg(feature = "git")]
+        #[serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "serialize_ref"
+        )]
+        r#ref: Option<gix::refs::PartialName>,
+    },
 }
 
 /// atom dependencies
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Atoms {
-    version: Version,
+    version: VersionReq,
+    #[serde(flatten)]
     src: Src,
 }
 
@@ -21,16 +35,15 @@ pub struct Atoms {
 /// represent both as they share the same form.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Srcs {
+    #[serde(flatten)]
     src: Src,
-    #[cfg(feature = "git")]
-    r#ref: gix::refs::PartialName,
 }
 
 #[allow(dead_code)]
 impl Src {
     pub(crate) fn url(self) -> Option<Url> {
         match self {
-            Src::Url(url) => Some(url),
+            Src::Url { url, .. } => Some(url),
             _ => None,
         }
     }
@@ -41,4 +54,17 @@ impl Src {
             _ => None,
         }
     }
+}
+
+#[cfg(feature = "git")]
+fn serialize_ref<S>(
+    bytes: &Option<gix::refs::PartialName>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    // calling unwrap is safe since we skip serialize on none
+    let str = bytes.as_ref().unwrap().as_ref().as_bstr().to_owned();
+    serializer.serialize_str(&str.to_string())
 }
